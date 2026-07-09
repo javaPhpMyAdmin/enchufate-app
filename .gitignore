@@ -1,0 +1,33 @@
+# OSX
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+*.log
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+*.tsbuildinfo
+
+# Native build artifacts
+ios/
+android/
+
+# Metro
+.metro-health-check*
+
+# Editors
+.vscode/
+.idea/
+
+# Env
+.env
+.env*.local
+
+# gentle-ai tooling state (not project source)
+.atl/
