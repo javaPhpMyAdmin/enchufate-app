@@ -75,7 +75,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   insert into public.profiles (id, display_name, avatar_url)
@@ -117,7 +117,7 @@ create table if not exists public.chargers (
   status          text not null default 'available' check (
     status in ('available', 'busy')
   ),
-  location        geography(point, 4326) not null,
+  location        extensions.geography(Point, 4326) not null,
   address         text not null,
   neighborhood    text,
   city            text not null,
@@ -168,7 +168,7 @@ create or replace function public.handle_charger_status_change()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   -- New session: status just flipped to 'busy' (from anything else).
@@ -298,7 +298,7 @@ returns table (
   power_kw        numeric,
   price_per_hour  numeric,
   status          text,
-  location        geography(point, 4326),
+  location        extensions.geography(Point, 4326),
   address         text,
   neighborhood    text,
   city            text,
@@ -313,20 +313,20 @@ returns table (
 language sql
 stable
 security invoker
-set search_path = public
+set search_path = public, extensions
 as $$
   select
     c.*,
     st_distance(
       c.location,
-      st_setsrid(st_makepoint(lng, lat), 4326)::geography
+      st_setsrid(st_makepoint(lng, lat), 4326)::extensions.geography
     ) as distance_meters
   from public.chargers c
   where st_dwithin(
-    c.location,
-    st_setsrid(st_makepoint(lng, lat), 4326)::geography,
-    radius_meters
-  )
+      c.location,
+      st_setsrid(st_makepoint(lng, lat), 4326)::extensions.geography,
+      radius_meters
+    )
   order by distance_meters;
 $$;
 
