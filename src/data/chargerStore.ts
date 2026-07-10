@@ -256,12 +256,15 @@ export function useChargers(): Charger[] {
   if (!isLoaded && !loadPromise) {
     void ensureLoaded();
   }
-  return snapshot as Charger[];
+  // Defensive: never return undefined. The snapshot is typed as
+  // `readonly Charger[]` but the typecast erases that, so a caller doing
+  // `arr.length` would crash if anything ever set `chargers` to undefined.
+  return (snapshot ?? []) as Charger[];
 }
 
 /** Subscribe to the chargers owned by a specific user. */
 export function useMyChargers(ownerId: string | null | undefined): Charger[] {
-  const all = useChargers();
+  const all = useChargers() ?? [];
   if (!ownerId) return [];
   return all.filter((c) => c.ownerId === ownerId);
 }

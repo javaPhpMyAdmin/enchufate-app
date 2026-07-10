@@ -50,7 +50,7 @@ import {
 } from '@/features/messages';
 import { messageStore, useMessagesByConversation } from '@/data/messageStore';
 import { mockUsers } from '@/data/mocks/users';
-import type { Message, User } from '@/data/types';
+import type { Conversation, Message, User } from '@/data/types';
 import { getUserById } from '@/domain/user';
 import { useTheme } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
@@ -65,12 +65,24 @@ export default function ChatScreen(): React.JSX.Element {
   const { session } = useAuth();
   const me = session?.user;
 
-  // Look up the conversation defensively. If we don't have an active
-  // session (the auth gate should prevent this, but we keep the
-  // typing honest), show a minimal placeholder.
-  const conversation = useMemo(() => {
-    if (!conversationId) return null;
-    return messageStore.byId(conversationId);
+  // Fetch the conversation from Supabase. The previous mock store
+  // returned it synchronously; the Supabase-backed `byId` is async, so
+  // we use local state + a `cancelled` flag to avoid races.
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  useEffect(() => {
+    if (!conversationId) {
+      setConversation(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const c = await messageStore.byId(conversationId);
+      if (cancelled) return;
+      setConversation(c);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [conversationId]);
 
   const messages = useMessagesByConversation(conversation?.id ?? null);

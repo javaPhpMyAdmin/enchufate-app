@@ -195,7 +195,7 @@ function ProfileBody({
   const theme = useTheme();
   const router = useRouter();
   const { session } = useAuth();
-  const chargers = useMyChargers(userId);
+  const chargers = useMyChargers(userId) ?? [];
   const detailSheetRef = useRef<ChargerDetailSheetHandle | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Charger | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);

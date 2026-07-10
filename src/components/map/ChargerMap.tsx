@@ -15,8 +15,7 @@ import MapView, {
 import type { Charger, LatLng } from '@/data/types';
 import { useTheme } from '@/theme';
 
-import { ChargerMarker } from './ChargerMarker';
-import { ChargerMarkerImage } from './ChargerMarkerImage';
+const chargerPin = require('@/assets/cargador.png');
 
 export interface ChargerMapHandle {
   /** Animate the camera to the given coordinates. */
@@ -120,12 +119,10 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
               identifier={c.id}
               coordinate={c.location}
               onPress={() => onSelectCharger(c.id)}
-              tracksViewChanges
+              image={chargerPin}
               anchor={{ x: 0.5, y: 0.5 }}
               zIndex={selectedId === c.id ? 99 : 1}
-            >
-              <ChargerMarkerImage charger={c} />
-            </Marker>
+            />
           ))}
         </MapView>
       </View>

@@ -37,15 +37,12 @@ import { getUserById } from '@/domain/user';
 import { useTheme } from '@/theme';
 
 export default function MessagesScreen(): React.JSX.Element {
-  const theme = useTheme();
-  const router = useRouter();
   const { status, session } = useAuth();
   const me = session?.user ?? null;
-  const conversations = useConversationsForUser(me?.id ?? null);
-  const [query, setQuery] = useState<string>('');
+  const theme = useTheme();
+  const router = useRouter();
 
-  // Unauthenticated branch: "Iniciá sesión" CTA, mirroring the
-  // profile tab so the UX is consistent across gated screens.
+  // Loading skeleton — no hooks below this point depend on me, so it's safe.
   if (status === 'loading') {
     return <Screen scroll={false} edges={['top']} />;
   }
@@ -55,10 +52,7 @@ export default function MessagesScreen(): React.JSX.Element {
         <View style={styles.unauth}>
           <EmptyState
             icon={
-              <MessageCircle
-                color={theme.colors.textMuted}
-                size={36}
-              />
+              <MessageCircle color={theme.colors.textMuted} size={36} />
             }
             title="Iniciá sesión"
             message="Necesitás iniciar sesión para ver tus conversaciones."
@@ -70,7 +64,26 @@ export default function MessagesScreen(): React.JSX.Element {
     );
   }
 
-  // Authenticated branch: search header + conversations list.
+  // Authenticated branch — all hooks live inside this child component
+  // so they are always called in the same order (rules of hooks).
+  return <MessagesAuthenticated userId={me.id} />;
+}
+
+// ---------------------------------------------------------------------------
+// Authenticated branch — hooks are safe here because this component is
+// always rendered in the same path (never conditionally mounted).
+// ---------------------------------------------------------------------------
+
+function MessagesAuthenticated({
+  userId,
+}: {
+  userId: string;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const router = useRouter();
+  const conversations = useConversationsForUser(userId);
+  const [query, setQuery] = useState<string>('');
+
   const handleOpenConversation = useCallback(
     (conversationId: string) => {
       router.push(`/messages/${conversationId}`);
@@ -134,7 +147,7 @@ export default function MessagesScreen(): React.JSX.Element {
 
         <ConversationsBody
           conversations={conversations}
-          currentUserId={me.id}
+          currentUserId={userId}
           query={query}
           onOpen={handleOpenConversation}
           onFindChargers={handleFindChargers}

@@ -14,7 +14,14 @@
  */
 import { useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Search, Zap } from 'lucide-react-native';
 
@@ -27,6 +34,83 @@ export default function HomeScreen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
   const { status } = useAuth();
+
+  // Loading skeleton — shown while AuthProvider hydrates the session
+  // (e.g. after Google login callback redirects here).
+  if (status === 'loading') {
+    return (
+      <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView edges={['top']} style={styles.flex}>
+          <View style={styles.header}>
+            <View
+              style={[
+                styles.logoCircle,
+                { backgroundColor: theme.colors.primaryLight },
+              ]}
+            >
+              <Zap
+                color={theme.colors.success}
+                size={20}
+                fill={theme.colors.success}
+              />
+            </View>
+            <View
+              style={[
+                styles.skeletonPulse,
+                {
+                  width: 140,
+                  height: 22,
+                  borderRadius: 6,
+                  backgroundColor: theme.colors.surface,
+                  marginLeft: 10,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.content}>
+            {/* Hero skeleton */}
+            <View
+              style={[
+                styles.hero,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 16,
+                },
+              ]}
+            />
+            {/* Action skeletons */}
+            <View
+              style={[
+                styles.skeletonPulse,
+                {
+                  flex: 0.7,
+                  minHeight: 76,
+                  borderRadius: theme.radii.lg,
+                  backgroundColor: theme.colors.surface,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.skeletonPulse,
+                {
+                  flex: 0.7,
+                  minHeight: 76,
+                  borderRadius: theme.radii.lg,
+                  backgroundColor: theme.colors.surface,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.skeletonSpinner}>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   const handleFindCharger = useCallback((): void => {
     router.push('/(tabs)/map');
@@ -231,5 +315,12 @@ const styles = StyleSheet.create({
   },
   actionText: {
     flex: 1,
+  },
+  skeletonPulse: {
+    // Placeholder rectangles while profile hydrates
+  },
+  skeletonSpinner: {
+    alignItems: 'center',
+    paddingVertical: 16,
   },
 });

@@ -1,22 +1,25 @@
 /**
  * SocialAuthButtons — single Google sign-in button.
  *
- * Tapping the button kicks off the Supabase OAuth webview (`signInWithOAuth`).
- * The provider's consent screen opens in the system browser/webview; once
- * the user completes Google auth, Supabase redirects back to the app
- * through the `enchufate://auth/callback` deep link (handled in
- * AuthProvider's Linking listener) and the auth state change fires with
- * `SIGNED_IN`.
+ * Tapping the button calls `useAuth().signInWithGoogle()`, which kicks
+ * off the Supabase OAuth flow (via `signInWithOAuth` + `expo-web-browser`).
+ * The provider's consent screen opens in an in-app webview; once the
+ * user completes Google auth, Supabase redirects back to the app
+ * through the deep link. The auth state change listener fires with
+ * `SIGNED_IN` and the app routes to (tabs).
  *
- * Setup required for this to actually work (in the Supabase dashboard):
+ * UX: while the webview is open and after it closes (until the callback
+ * navigates away), a full-screen loading overlay covers the login screen
+ * so the user never sees a flash of the login form between Google auth
+ * and the home screen.
+ *
+ * Setup required (in the Supabase dashboard):
  *   1. Authentication > Providers > Google — enabled with OAuth client
  *      ID + secret from Google Cloud Console.
- *   2. Authentication > URL Configuration — `enchufate://auth/callback`
- *      is in the redirect allow-list.
- *
- * If either of those is missing, `signInWithGoogle()` throws an
- * `AuthError` and we surface the message in an `Alert` (the only reliable
- * way to get user attention without refactoring the login screen).
+ *   2. Authentication > URL Configuration — redirect URI allow-list
+ *      must include both:
+ *        - enchufate://auth/callback (dev builds / production)
+ *        - exp://<local-ip>:8081/--/auth/callback (Expo Go)
  */
 import React, { useState } from 'react';
 import {
@@ -27,6 +30,8 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import { useAuth } from '@/features/auth';
 import { useTheme } from '@/theme';
@@ -37,30 +42,24 @@ export function SocialAuthButtons(): React.JSX.Element {
   const [busy, setBusy] = useState<boolean>(false);
 
   const handleGoogle = async (): Promise<void> => {
-    console.log('[auth-google] 1) button pressed at', new Date().toISOString());
-    if (busy) {
-      console.log('[auth-google] 1b) already busy, ignoring press');
-      return;
-    }
+    if (busy) return;
     setBusy(true);
     try {
-      console.log('[auth-google] 2) calling signInWithGoogle()...');
       await signInWithGoogle();
-      console.log('[auth-google] 3) signInWithGoogle() resolved (webview should be opening)');
-      // The webview / browser is taking over. The auth state change
-      // listener will bring us back into the app once the user
-      // completes Google auth and the redirect URL fires.
+      // The webview takes over; onAuthStateChange will bring us into
+      // the app once the user completes the consent screen.
+      // NOTE: we do NOT set busy = false here. The loading overlay
+      // must persist until this screen unmounts (which happens when
+      // the callback navigates to /(tabs)). Setting busy = false
+      // prematurely would flash the login screen for one frame.
     } catch (err) {
-      console.error('[auth-google] ERR signInWithGoogle threw:', err);
+      // Only clear busy on error — the user stays on the login screen.
+      setBusy(false);
       const message =
         err instanceof Error
           ? err.message
           : 'No pudimos iniciar sesión con Google.';
-      console.log('[auth-google] showing Alert with message:', message);
       Alert.alert('Error con Google', message);
-    } finally {
-      setBusy(false);
-      console.log('[auth-google] 4) handleGoogle finally, busy=false');
     }
   };
 
@@ -98,6 +97,26 @@ export function SocialAuthButtons(): React.JSX.Element {
           {busy ? 'Conectando con Google...' : 'Continuar con Google'}
         </Text>
       </Pressable>
+
+      {/* Full-screen loading overlay — covers the login form while the
+          Google webview is open and after it closes (until the callback
+          route navigates to /(tabs) and this screen unmounts). */}
+      {busy ? (
+        <View style={[styles.overlay, { backgroundColor: theme.colors.background }]}>
+          <StatusBar style="dark" />
+          <SafeAreaView style={styles.overlayContent}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text
+              style={[
+                theme.typography.body,
+                { color: theme.colors.textMuted, marginTop: 16, textAlign: 'center' },
+              ]}
+            >
+              Conectando con Google...
+            </Text>
+          </SafeAreaView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -132,5 +151,16 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 15,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
