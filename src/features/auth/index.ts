@@ -30,8 +30,6 @@ export {
   type ProfileRow,
 } from './profileMapper';
 
-export { signInWithGoogle, GOOGLE_OAUTH_REDIRECT } from './googleAuth';
-
 export {
   AuthError,
   mapSupabaseError,

@@ -1,68 +1,78 @@
 /**
- * SocialAuthButtons — Google + Apple sign-in.
+ * SocialAuthButtons — single Google sign-in button.
  *
- * Google (Phase 4) is wired to `useAuth().signInWithGoogle()` which kicks
- * off the Supabase OAuth webview. Apple is still a "Próximamente" stub —
- * real Apple sign-in needs native config (Sign in with Apple capability
- * + Service ID) that will land in a later phase.
+ * Tapping the button kicks off the Supabase OAuth webview (`signInWithOAuth`).
+ * The provider's consent screen opens in the system browser/webview; once
+ * the user completes Google auth, Supabase redirects back to the app
+ * through the `enchufate://auth/callback` deep link (handled in
+ * AuthProvider's Linking listener) and the auth state change fires with
+ * `SIGNED_IN`.
  *
- * Both buttons share a single loading flag so the user can see the OAuth
- * round-trip in flight.
+ * Setup required for this to actually work (in the Supabase dashboard):
+ *   1. Authentication > Providers > Google — enabled with OAuth client
+ *      ID + secret from Google Cloud Console.
+ *   2. Authentication > URL Configuration — `enchufate://auth/callback`
+ *      is in the redirect allow-list.
+ *
+ * If either of those is missing, `signInWithGoogle()` throws an
+ * `AuthError` and we surface the message in an `Alert` (the only reliable
+ * way to get user attention without refactoring the login screen).
  */
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { useAuth } from '@/features/auth';
 import { useTheme } from '@/theme';
 
-type Provider = 'google' | 'apple';
-
-const APPLE_COMING_SOON =
-  'Login con Apple llega en una próxima versión.';
-
 export function SocialAuthButtons(): React.JSX.Element {
   const theme = useTheme();
   const { signInWithGoogle } = useAuth();
-  const [busy, setBusy] = useState<Provider | null>(null);
+  const [busy, setBusy] = useState<boolean>(false);
 
   const handleGoogle = async (): Promise<void> => {
     if (busy) return;
-    setBusy('google');
+    setBusy(true);
     try {
       await signInWithGoogle();
-      // The webview is taking over; the spinner stays on while the
-      // auth state change listener brings us back into the app.
+      // The webview / browser is taking over. The auth state change
+      // listener will bring us back into the app once the user
+      // completes Google auth and the redirect URL fires.
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'No pudimos iniciar sesión con Google.';
-      Alert.alert('Error', message);
+        err instanceof Error
+          ? err.message
+          : 'No pudimos iniciar sesión con Google.';
+      Alert.alert('Error con Google', message);
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   };
 
-  const handleApple = (): void => {
-    if (busy) return;
-    Alert.alert('Próximamente', APPLE_COMING_SOON);
-  };
-
   return (
-    <View style={styles.row}>
+    <View style={styles.container}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Continuar con Google"
+        accessibilityState={{ busy }}
         onPress={() => void handleGoogle()}
-        disabled={busy !== null}
+        disabled={busy}
         style={({ pressed }) => [
           styles.button,
           {
             backgroundColor: '#FFFFFF',
             borderColor: theme.colors.border,
-            opacity: busy && busy !== 'google' ? 0.5 : pressed ? 0.85 : 1,
+            opacity: busy ? 0.6 : pressed ? 0.85 : 1,
           },
         ]}
       >
-        {busy === 'google' ? (
+        {busy ? (
           <ActivityIndicator color="#4285F4" />
         ) : (
           <View style={styles.googleBubble}>
@@ -76,40 +86,7 @@ export function SocialAuthButtons(): React.JSX.Element {
             { color: theme.colors.text },
           ]}
         >
-          Google
-        </Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Continuar con Apple"
-        onPress={handleApple}
-        disabled={busy !== null}
-        style={({ pressed }) => [
-          styles.button,
-          {
-            backgroundColor: '#0F172A',
-            borderColor: '#0F172A',
-            opacity: busy && busy !== 'apple' ? 0.5 : pressed ? 0.85 : 1,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.appleGlyph,
-            { color: '#FFFFFF' },
-          ]}
-        >
-          {/* Apple logo (text glyph) — a real brand asset lands later. */}
-          {'\uF8FF'}
-        </Text>
-        <Text
-          style={[
-            theme.typography.smallBold,
-            styles.label,
-            { color: '#FFFFFF' },
-          ]}
-        >
-          Apple
+          {busy ? 'Conectando con Google...' : 'Continuar con Google'}
         </Text>
       </Pressable>
     </View>
@@ -117,39 +94,34 @@ export function SocialAuthButtons(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 12,
+  container: {
+    width: '100%',
   },
   button: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    gap: 10,
+    gap: 12,
   },
   googleBubble: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#4285F4',
     alignItems: 'center',
     justifyContent: 'center',
   },
   googleLetter: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  appleGlyph: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
   },
 });
