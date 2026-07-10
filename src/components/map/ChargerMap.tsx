@@ -15,7 +15,7 @@ import MapView, {
 import type { Charger, LatLng } from '@/data/types';
 import { useTheme } from '@/theme';
 
-const chargerPin = require('@/assets/cargador.png');
+const chargerPin = require('../../../assets/cargador.png');
 
 export interface ChargerMapHandle {
   /** Animate the camera to the given coordinates. */
