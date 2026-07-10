@@ -6,8 +6,19 @@
  * confirmation. Validation is driven by `registerSchema` (see
  * `@/features/auth/schemas`).
  *
- * On success, `useAuth().signUp` creates a mock user, persists the
- * session and switches the app over to the (tabs) experience.
+ * On success, `useAuth().signUp` creates the Supabase user (passing
+ * `display_name` / `surname` / `avatar_url` in `options.data` so the
+ * `handle_new_user` trigger creates the matching `profiles` row), the
+ * auth state change listener picks the session up, and the app routes
+ * over to the (tabs) experience — or the `?redirect=` target if the
+ * user came in from the publish auth gate.
+ *
+ * Note: with default Supabase settings, the signup returns
+ * `session: null` until the user confirms their email. For v1 we
+ * require the dashboard to be set to "Confirm email: disabled" so the
+ * session is established immediately and the redirect happens in one
+ * step. If the dashboard still has email confirmation on, the user
+ * would need to confirm before they can sign in.
  */
 import React, { useCallback, useState } from 'react';
 import {
@@ -17,7 +28,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useController, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { StatusBar } from 'expo-status-bar';
@@ -29,6 +40,7 @@ import {
 } from '@/components/auth';
 import { Button, Divider, TextField } from '@/components/ui';
 import {
+  mapSupabaseError,
   useAuth,
   type RegisterInput,
   registerSchema,
@@ -41,6 +53,10 @@ export default function RegisterScreen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
   const { signUp } = useAuth();
+  const params = useLocalSearchParams<{ redirect?: string | string[] }>();
+  const redirectTo = Array.isArray(params.redirect)
+    ? params.redirect[0]
+    : params.redirect;
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -64,18 +80,21 @@ export default function RegisterScreen(): React.JSX.Element {
       setFormError(null);
       try {
         await signUp(data);
-        router.replace('/(tabs)');
+        const fallback = '/(tabs)';
+        const target =
+          redirectTo && redirectTo.startsWith('/') ? redirectTo : fallback;
+        router.replace(target as never);
       } catch (err) {
-        const message =
+        const raw =
           err instanceof Error
             ? err.message
             : 'No pudimos crear tu cuenta. Probá de nuevo.';
-        setFormError(message);
+        setFormError(mapSupabaseError(raw));
       } finally {
         setSubmitting(false);
       }
     }),
-    [handleSubmit, router, signUp],
+    [handleSubmit, redirectTo, router, signUp],
   );
 
   const isSubmitDisabled = submitting || !formState.isValid;

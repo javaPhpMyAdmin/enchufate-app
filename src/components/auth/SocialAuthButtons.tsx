@@ -1,26 +1,49 @@
 /**
- * SocialAuthButtons — mocked Google + Apple sign-in.
+ * SocialAuthButtons — Google + Apple sign-in.
  *
- * Tapping either button shows a "Próximamente" alert. REQ-3 / REQ-4 only
- * require the buttons to exist for v1; real OAuth comes later.
+ * Google (Phase 4) is wired to `useAuth().signInWithGoogle()` which kicks
+ * off the Supabase OAuth webview. Apple is still a "Próximamente" stub —
+ * real Apple sign-in needs native config (Sign in with Apple capability
+ * + Service ID) that will land in a later phase.
+ *
+ * Both buttons share a single loading flag so the user can see the OAuth
+ * round-trip in flight.
  */
-import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAuth } from '@/features/auth';
 import { useTheme } from '@/theme';
 
 type Provider = 'google' | 'apple';
 
-const COMING_SOON: Record<Provider, string> = {
-  google: 'Login con Google llega en una próxima versión.',
-  apple: 'Login con Apple llega en una próxima versión.',
-};
+const APPLE_COMING_SOON =
+  'Login con Apple llega en una próxima versión.';
 
 export function SocialAuthButtons(): React.JSX.Element {
   const theme = useTheme();
+  const { signInWithGoogle } = useAuth();
+  const [busy, setBusy] = useState<Provider | null>(null);
 
-  const handlePress = (provider: Provider): void => {
-    Alert.alert('Próximamente', COMING_SOON[provider]);
+  const handleGoogle = async (): Promise<void> => {
+    if (busy) return;
+    setBusy('google');
+    try {
+      await signInWithGoogle();
+      // The webview is taking over; the spinner stays on while the
+      // auth state change listener brings us back into the app.
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'No pudimos iniciar sesión con Google.';
+      Alert.alert('Error', message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleApple = (): void => {
+    if (busy) return;
+    Alert.alert('Próximamente', APPLE_COMING_SOON);
   };
 
   return (
@@ -28,19 +51,24 @@ export function SocialAuthButtons(): React.JSX.Element {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Continuar con Google"
-        onPress={() => handlePress('google')}
+        onPress={() => void handleGoogle()}
+        disabled={busy !== null}
         style={({ pressed }) => [
           styles.button,
           {
             backgroundColor: '#FFFFFF',
             borderColor: theme.colors.border,
-            opacity: pressed ? 0.85 : 1,
+            opacity: busy && busy !== 'google' ? 0.5 : pressed ? 0.85 : 1,
           },
         ]}
       >
-        <View style={styles.googleBubble}>
-          <Text style={styles.googleLetter}>G</Text>
-        </View>
+        {busy === 'google' ? (
+          <ActivityIndicator color="#4285F4" />
+        ) : (
+          <View style={styles.googleBubble}>
+            <Text style={styles.googleLetter}>G</Text>
+          </View>
+        )}
         <Text
           style={[
             theme.typography.smallBold,
@@ -54,13 +82,14 @@ export function SocialAuthButtons(): React.JSX.Element {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Continuar con Apple"
-        onPress={() => handlePress('apple')}
+        onPress={handleApple}
+        disabled={busy !== null}
         style={({ pressed }) => [
           styles.button,
           {
             backgroundColor: '#0F172A',
             borderColor: '#0F172A',
-            opacity: pressed ? 0.85 : 1,
+            opacity: busy && busy !== 'apple' ? 0.5 : pressed ? 0.85 : 1,
           },
         ]}
       >

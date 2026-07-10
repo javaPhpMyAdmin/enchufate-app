@@ -22,11 +22,23 @@ export {
 export { loginSchema, registerSchema } from './schemas';
 export type { LoginInput, RegisterInput } from './schemas';
 
-export type {
-  AuthCredentials,
-  AuthStatus,
-  SignUpData,
-  UserSession,
+export {
+  buildAvatarUrl,
+  fetchProfile,
+  persistProfile,
+  profileToUser,
+  type ProfileRow,
+} from './profileMapper';
+
+export { signInWithGoogle, GOOGLE_OAUTH_REDIRECT } from './googleAuth';
+
+export {
+  AuthError,
+  mapSupabaseError,
+  type AuthCredentials,
+  type AuthStatus,
+  type SignUpData,
+  type UserSession,
 } from './types';
 // `User` is re-exported from auth/types for convenience, but it actually
 // lives in `@/data/types` — re-exported from there too so the rest of the

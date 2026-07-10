@@ -3,14 +3,17 @@
  *
  * Renders the auth header, an email + password form (validated by Zod via
  * react-hook-form), a "Olvidé mi contraseña" link (visual only for v1),
- * mocked social buttons, and a "Crear cuenta" link to the register screen.
+ * Google + Apple social buttons (Google wired, Apple stub), and a "Crear
+ * cuenta" link to the register screen.
  *
  * On submit, delegates to `useAuth().signIn`, which validates again on
- * the JS side as a defense in depth and persists the resulting session.
+ * the JS side as a defense in depth and persists the resulting session
+ * via Supabase. The `redirect` query param — when present, e.g. from the
+ * bookings or publish auth gate — is honored after a successful sign-in.
  */
 import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useController, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { StatusBar } from 'expo-status-bar';
@@ -22,6 +25,7 @@ import {
 } from '@/components/auth';
 import { Button, Divider, TextField } from '@/components/ui';
 import {
+  mapSupabaseError,
   useAuth,
   type LoginInput,
   loginSchema,
@@ -32,6 +36,10 @@ export default function LoginScreen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
   const { signIn } = useAuth();
+  const params = useLocalSearchParams<{ redirect?: string | string[] }>();
+  const redirectTo = Array.isArray(params.redirect)
+    ? params.redirect[0]
+    : params.redirect;
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -47,18 +55,25 @@ export default function LoginScreen(): React.JSX.Element {
       setFormError(null);
       try {
         await signIn(data);
-        router.replace('/(tabs)');
+        // Honor the `?redirect=` deep-link the user came in from so the
+        // bookings / publish auth gate can drop the user back where they
+        // were. Anything we don't recognize (e.g. a tampered URL) falls
+        // back to the (tabs) root.
+        const fallback = '/(tabs)';
+        const target =
+          redirectTo && redirectTo.startsWith('/') ? redirectTo : fallback;
+        router.replace(target as never);
       } catch (err) {
-        const message =
+        const raw =
           err instanceof Error
             ? err.message
             : 'No pudimos iniciar sesión. Probá de nuevo.';
-        setFormError(message);
+        setFormError(mapSupabaseError(raw));
       } finally {
         setSubmitting(false);
       }
     }),
-    [handleSubmit, router, signIn],
+    [handleSubmit, redirectTo, router, signIn],
   );
 
   const handleForgotPassword = useCallback((): void => {

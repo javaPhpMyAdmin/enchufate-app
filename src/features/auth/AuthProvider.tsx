@@ -2,19 +2,25 @@
  * AuthProvider — React Context that owns the authenticated user session for
  * the lifetime of the app.
  *
- * Phase 1 ships a **mock** implementation:
- *   - signIn accepts any RFC-valid email + password >= 6 chars
- *   - signUp accepts any form that passes `registerSchema`
- *   - there is no remote backend; the session lives only in AsyncStorage
+ * Phase 4 swapped the AsyncStorage mock for real Supabase Auth:
+ *   - signIn  -> supabase.auth.signInWithPassword
+ *   - signUp  -> supabase.auth.signUp (passes `display_name` / `surname`
+ *                / `avatar_url` in `options.data` so the `handle_new_user`
+ *                trigger creates the matching `profiles` row)
+ *   - signInWithGoogle -> supabase.auth.signInWithOAuth
+ *   - signOut -> supabase.auth.signOut
  *
- * Phase 4 added:
- *   - unified `User` shape (private + public fields)
- *   - `updateProfile(patch)` for the edit-profile screen
- *   - graceful hydration of older sessions persisted before the schema grew
+ * The session is owned by the Supabase JS client (which persists it to
+ * AsyncStorage under the hood). We re-hydrate on mount via
+ * `getSession()` and stay in sync via `onAuthStateChange()`. When the
+ * session changes we SELECT the `profiles` row and map it to the `User`
+ * shape the rest of the app consumes.
  *
- * The public API (`useAuth`) is shaped so the real Supabase adapter can be
- * dropped in later without touching any screen.
+ * The public `useAuth()` API stays compatible with prior consumers: the
+ * only new method is `signInWithGoogle`.
  */
+import * as Linking from 'expo-linking';
+import type { Session } from '@supabase/supabase-js';
 import React, {
   createContext,
   useCallback,
@@ -24,23 +30,22 @@ import React, {
   useState,
 } from 'react';
 
+import { supabase } from '@/lib/supabase';
+import type { User } from '@/data/types';
+
 import {
-  clearSession,
   hasOnboardingBeenSeen,
-  loadSession,
-  saveSession,
   setOnboardingSeen,
 } from './authStorage';
+import { fetchProfile, persistProfile } from './profileMapper';
 import { loginSchema, registerSchema } from './schemas';
-import type {
-  AuthCredentials,
-  AuthStatus,
-  SignUpData,
-  UserSession,
+import {
+  AuthError,
+  type AuthCredentials,
+  type AuthStatus,
+  type SignUpData,
+  type UserSession,
 } from './types';
-import type { User } from '@/data/types';
-import { mockUsers } from '@/data/mocks/users';
-import { getUserById } from '@/domain/user';
 
 export interface AuthContextValue {
   status: AuthStatus;
@@ -52,12 +57,14 @@ export interface AuthContextValue {
   onboardingSeen: boolean | null;
   signIn: (credentials: AuthCredentials) => Promise<void>;
   signUp: (data: SignUpData) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   /** Mark the onboarding flow as completed and persist the flag. */
   completeOnboarding: () => Promise<void>;
   /**
-   * Patch the current session's user with partial fields. Persists to
-   * AsyncStorage and notifies subscribers. No-op if no session is active.
+   * Patch the current session's user with partial fields. Persists to the
+   * `profiles` row in Supabase and updates local state. No-op if no
+   * session is active.
    */
   updateProfile: (patch: Partial<User>) => Promise<void>;
 }
@@ -65,71 +72,19 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 // ---------------------------------------------------------------------------
-// Defaults / hydration helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Merge a previously-persisted user record (possibly missing the new
- * fields introduced in Phase 4) with sensible defaults. If the user id
- * matches a seed user in `mocks/users.ts`, we hydrate the missing fields
- * from there so the public profile / charger cards stay consistent.
+ * Build a session DTO from a Supabase session + the hydrated User. We
+ * keep `createdAt` (used elsewhere in the app) sourced from the auth
+ * user, not from the local clock, so it matches the server.
  */
-function withUserDefaults(partial: Partial<User> & { id: string }): User {
-  const seed = getUserById(mockUsers, partial.id);
-  const fallback: User = {
-    id: partial.id,
-    name: '',
-    surname: '',
-    email: '',
-    avatarUrl: '',
-    rating: 0,
-    reviewCount: 0,
-    isOnline: true,
-    isHost: false,
-    joinedAt: new Date(0).toISOString(),
+function toUserSession(supaSession: Session, user: User): UserSession {
+  return {
+    user,
+    createdAt: supaSession.user.created_at ?? new Date().toISOString(),
   };
-  const merged: User = { ...fallback, ...seed, ...partial };
-  // Last-resort avatar if we still don't have one.
-  if (!merged.avatarUrl) {
-    const name = `${merged.name} ${merged.surname}`.trim() || merged.id;
-    merged.avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      name,
-    )}&background=00C896&color=fff&size=200&bold=true&format=png`;
-  }
-  return merged;
-}
-
-// ---------------------------------------------------------------------------
-// Mock helpers — used by `signIn` to derive a name when the user only
-// provides an email. Replace with real backend responses later.
-// ---------------------------------------------------------------------------
-
-function generateId(): string {
-  // Time-based id with a random suffix; good enough for a mock layer.
-  return `u_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
-}
-
-function capitalize(value: string): string {
-  if (value.length === 0) return value;
-  return (value[0] ?? '').toUpperCase() + value.slice(1).toLowerCase();
-}
-
-function deriveNameFromEmail(email: string): { name: string; surname: string } {
-  const local = email.split('@')[0] ?? 'Conductor';
-  const parts = local.split(/[._-]+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return { name: capitalize(parts[0] ?? ''), surname: capitalize(parts[1] ?? '') };
-  }
-  return { name: capitalize(local), surname: 'Enchufate' };
-}
-
-function buildAvatarUrl(name: string, email: string): string {
-  const text = encodeURIComponent(name || email);
-  // Matches the style used in src/data/mocks/users.ts so the UI feels
-  // consistent whether the user is a host or the signed-in driver.
-  return `https://ui-avatars.com/api/?name=${text}&background=00C896&color=fff&size=200&bold=true&format=png`;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,95 +104,174 @@ export function AuthProvider({
     null,
   );
 
-  // Hydrate from AsyncStorage on mount.
+  // Bootstrap: hydrate the session + profile + onboarding flag, then stay
+  // in sync via the auth state change listener.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const [storedSession, seen] = await Promise.all([
-        loadSession(),
-        hasOnboardingBeenSeen(),
-      ]);
+
+    const applySession = async (supaSession: Session | null): Promise<void> => {
       if (cancelled) return;
-      if (storedSession) {
-        // Backward compat: a session persisted before Phase 4 may be missing
-        // the new unified fields. Re-apply defaults + seed-merge so the rest
-        // of the app can treat the user as a complete `User`. We then
-        // persist the merged shape so the next cold-start is clean.
-        const hydrated: UserSession = {
-          ...storedSession,
-          user: withUserDefaults(
-            storedSession.user as Partial<User> & { id: string },
-          ),
-        };
-        setSession(hydrated);
-        await saveSession(hydrated);
+      if (!supaSession) {
+        setSession(null);
+        setStatus('unauthenticated');
+        return;
+      }
+      try {
+        const user = await fetchProfile(supaSession);
+        if (cancelled) return;
+        setSession(toUserSession(supaSession, user));
         setStatus('authenticated');
-      } else {
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[auth] failed to hydrate profile', err);
+        // Even if the profile fetch fails we mark as authenticated — the
+        // session is valid, and the user can fix their profile from the
+        // edit screen. Fall back to a synthesized user so the rest of
+        // the app still has a value to render.
+        setSession(
+          toUserSession(supaSession, {
+            id: supaSession.user.id,
+            name:
+              supaSession.user.user_metadata?.display_name ??
+              supaSession.user.email?.split('@')[0] ??
+              'Conductor',
+            surname: supaSession.user.user_metadata?.surname ?? '',
+            email: supaSession.user.email ?? '',
+            avatarUrl:
+              supaSession.user.user_metadata?.avatar_url ??
+              'https://ui-avatars.com/api/?name=Conductor&background=00C896&color=fff&size=200&bold=true&format=png',
+            rating: 0,
+            reviewCount: 0,
+            isOnline: true,
+            isHost: false,
+            joinedAt: supaSession.user.created_at ?? new Date().toISOString(),
+          }),
+        );
+        setStatus('authenticated');
+      }
+    };
+
+    (async () => {
+      // 1. Read the persisted onboarding flag in parallel with the
+      //    session lookup — both touch AsyncStorage on the native side.
+      const seen = await hasOnboardingBeenSeen();
+      if (cancelled) return;
+      setOnboardingSeenState(seen);
+
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (error) {
+          console.warn('[auth] getSession error', error.message);
+        }
+        await applySession(data.session ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[auth] getSession threw', err);
         setSession(null);
         setStatus('unauthenticated');
       }
-      if (!cancelled) {
-        setOnboardingSeenState(seen);
-      }
     })();
+
+    // 2. Auth state changes. We deliberately use the sync callback form
+    //    (no async return) to avoid the deadlock the supabase-js docs
+    //    warn about when a `TOKEN_REFRESHED` handler triggers another
+    //    refresh internally.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, supaSession) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        void applySession(supaSession);
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setStatus('unauthenticated');
+      }
+    });
+
+    // 3. Deep-link listener for the OAuth callback. With
+    //    `detectSessionInUrl: false` (see src/lib/supabase.ts) the JS
+    //    client does not auto-parse the URL — we have to do it. The
+    //    auth state change listener also fires when the session lands,
+    //    so this is a safety net: if it never fires (e.g. a flaky
+    //    subscription) we still complete the round-trip.
+    const linkingSub = Linking.addEventListener('url', ({ url }) => {
+      void handleAuthCallback(url);
+    });
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) void handleAuthCallback(url);
+      })
+      .catch(() => {
+        // Linking.getInitialURL can reject if the native module is
+        // unavailable; the listener above will catch warm-start URLs.
+      });
+
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
+      linkingSub.remove();
     };
   }, []);
+
+  // -------------------------------------------------------------------------
+  // Auth actions
+  // -------------------------------------------------------------------------
 
   const signIn = useCallback(
     async (credentials: AuthCredentials): Promise<void> => {
       const parsed = loginSchema.parse(credentials);
-      const { name, surname } = deriveNameFromEmail(parsed.email);
-      const user: User = {
-        id: generateId(),
-        name,
-        surname,
+      const { error } = await supabase.auth.signInWithPassword({
         email: parsed.email,
-        avatarUrl: buildAvatarUrl(`${name} ${surname}`, parsed.email),
-        rating: 0,
-        reviewCount: 0,
-        isOnline: true,
-        isHost: false,
-        joinedAt: new Date().toISOString(),
-      };
-      const next: UserSession = { user, createdAt: new Date().toISOString() };
-      await saveSession(next);
-      setSession(next);
-      setStatus('authenticated');
+        password: parsed.password,
+      });
+      if (error) {
+        throw new AuthError(error.message, { cause: error });
+      }
+      // The onAuthStateChange listener picks up the new session and
+      // hydrates the profile; no manual setState needed here.
     },
     [],
   );
 
   const signUp = useCallback(async (data: SignUpData): Promise<void> => {
     const parsed = registerSchema.parse(data);
-    const user: User = {
-      id: generateId(),
-      name: parsed.name,
-      surname: parsed.surname,
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      `${parsed.name} ${parsed.surname}`,
+    )}&background=00C896&color=fff&size=200&bold=true&format=png`;
+    const { error } = await supabase.auth.signUp({
       email: parsed.email,
-      phone: parsed.phone,
-      city: parsed.city,
-      avatarUrl: buildAvatarUrl(
-        `${parsed.name} ${parsed.surname}`,
-        parsed.email,
-      ),
-      rating: 0,
-      reviewCount: 0,
-      isOnline: true,
-      isHost: false,
-      joinedAt: new Date().toISOString(),
-    };
-    const next: UserSession = { user, createdAt: new Date().toISOString() };
-    await saveSession(next);
-    setSession(next);
-    setStatus('authenticated');
+      password: parsed.password,
+      options: {
+        data: {
+          display_name: parsed.name,
+          surname: parsed.surname,
+          avatar_url: avatarUrl,
+        },
+      },
+    });
+    if (error) {
+      throw new AuthError(error.message, { cause: error });
+    }
+    // Phone and city are not part of the auto-create trigger's payload;
+    // the user can add them from the edit profile screen after sign-in.
+  }, []);
+
+  const signInWithGoogle = useCallback(async (): Promise<void> => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'enchufate://auth/callback',
+      },
+    });
+    if (error) {
+      throw new AuthError(error.message, { cause: error });
+    }
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {
-    await clearSession();
-    setSession(null);
-    setStatus('unauthenticated');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new AuthError(error.message, { cause: error });
+    }
+    // The onAuthStateChange listener clears the React state.
   }, []);
 
   const completeOnboarding = useCallback(async (): Promise<void> => {
@@ -247,18 +281,30 @@ export function AuthProvider({
 
   const updateProfile = useCallback(
     async (patch: Partial<User>): Promise<void> => {
+      // Compute the merged user outside of setState so we can both
+      // update local state and fire the Supabase PATCH.
+      let nextUser: User | null = null;
       setSession((current) => {
         if (!current) return current;
-        const nextUser: User = { ...current.user, ...patch };
-        const nextSession: UserSession = { ...current, user: nextUser };
-        // Fire-and-forget persistence — the in-memory state is already
-        // updated and the caller's await isn't blocked on the disk write.
-        void saveSession(nextSession);
-        return nextSession;
+        nextUser = { ...current.user, ...patch };
+        return { ...current, user: nextUser };
       });
+      if (nextUser) {
+        try {
+          await persistProfile(nextUser);
+        } catch (err) {
+          // Surface the failure to the caller — the edit profile screen
+          // shows a generic error and reverts via the session reload.
+          throw err;
+        }
+      }
     },
     [],
   );
+
+  // -------------------------------------------------------------------------
+  // Context value
+  // -------------------------------------------------------------------------
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -267,6 +313,7 @@ export function AuthProvider({
       onboardingSeen,
       signIn,
       signUp,
+      signInWithGoogle,
       signOut,
       completeOnboarding,
       updateProfile,
@@ -277,6 +324,7 @@ export function AuthProvider({
       onboardingSeen,
       signIn,
       signUp,
+      signInWithGoogle,
       signOut,
       completeOnboarding,
       updateProfile,
@@ -292,4 +340,27 @@ export function useAuth(): AuthContextValue {
     throw new Error('useAuth must be used inside an AuthProvider');
   }
   return ctx;
+}
+
+// ---------------------------------------------------------------------------
+// OAuth callback handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a `enchufate://auth/callback?...` URL and ask Supabase to
+ * exchange the auth code for a session. Errors are logged but not
+ * thrown — the auth state change listener is the source of truth for
+ * the resulting `SIGNED_IN` event, and we'd rather not surface an
+ * exception that's already been handled there.
+ */
+async function handleAuthCallback(url: string): Promise<void> {
+  if (!url.startsWith('enchufate://auth/callback')) return;
+  try {
+    const { error } = await supabase.auth.exchangeCodeForSession(url);
+    if (error) {
+      console.warn('[auth] exchangeCodeForSession failed', error.message);
+    }
+  } catch (err) {
+    console.warn('[auth] exchangeCodeForSession threw', err);
+  }
 }
