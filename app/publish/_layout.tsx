@@ -3,11 +3,16 @@
  * and provides the shared chrome (cancel button, progress bar) for
  * every step.
  *
+ * Auth gate: publishing requires a signed-in user. Unauthed visitors
+ * are redirected to `/(public)/login?redirect=/publish`; after a
+ * successful sign-in the login screen sends them back to the wizard.
+ *
  * Edit mode: when the user navigates to `/publish?edit=<chargerId>`, the
  * layout pre-fills the draft with the charger's data. The wizard itself
  * is the same — submit just dispatches to `update` instead of `add`.
  */
 import {
+  Redirect,
   Stack,
   useLocalSearchParams,
   usePathname,
@@ -27,6 +32,7 @@ import {
   type WizardStep,
 } from '@/features/publish';
 import { WizardProgress } from '@/components/publish';
+import { useAuth } from '@/features/auth';
 import { chargerStore } from '@/data/chargerStore';
 
 const STEP_BY_SEGMENT: Record<string, WizardStep> = {
@@ -55,26 +61,61 @@ function resolveStep(pathname: string): WizardStep {
 
 export default function PublishLayout(): React.JSX.Element {
   return (
-    <PublishProvider>
-      <WizardChrome>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: 'transparent' },
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="location" />
-          <Stack.Screen name="specs" />
-          <Stack.Screen name="photos" />
-          <Stack.Screen name="pricing" />
-          <Stack.Screen name="availability" />
-          <Stack.Screen name="rules" />
-          <Stack.Screen name="success" />
-        </Stack>
-      </WizardChrome>
-    </PublishProvider>
+    <PublishAuthGate>
+      <PublishProvider>
+        <WizardChrome>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="location" />
+            <Stack.Screen name="specs" />
+            <Stack.Screen name="photos" />
+            <Stack.Screen name="pricing" />
+            <Stack.Screen name="availability" />
+            <Stack.Screen name="rules" />
+            <Stack.Screen name="success" />
+          </Stack>
+        </WizardChrome>
+      </PublishProvider>
+    </PublishAuthGate>
   );
+}
+
+// ---------------------------------------------------------------------------
+// PublishAuthGate — redirects unauthed visitors to the login screen with
+// a `?redirect=/publish` query so they land back on the wizard after
+// signing in. While the auth status is still resolving we render the
+// splash (the same one the root layout uses) to avoid a flash of the
+// wizard chrome.
+// ---------------------------------------------------------------------------
+
+function PublishAuthGate({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  const { status } = useAuth();
+  const theme = useTheme();
+
+  if (status === 'loading') {
+    return (
+      <View
+        style={[styles.gateRoot, { backgroundColor: theme.colors.primary }]}
+        accessibilityRole="progressbar"
+        accessibilityLabel="Cargando"
+      >
+        <ActivityIndicator color="#FFFFFF" />
+      </View>
+    );
+  }
+  if (status === 'unauthenticated') {
+    return <Redirect href="/(public)/login?redirect=/publish" />;
+  }
+  return <>{children}</>;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +227,11 @@ function WizardChrome({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  gateRoot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
