@@ -178,6 +178,7 @@ export function AuthProvider({
     //    warn about when a `TOKEN_REFRESHED` handler triggers another
     //    refresh internally.
     const { data: sub } = supabase.auth.onAuthStateChange((event, supaSession) => {
+      console.log('[auth-google] onAuthStateChange event:', event, 'hasSession:', !!supaSession);
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         void applySession(supaSession);
       } else if (event === 'SIGNED_OUT') {
@@ -193,13 +194,16 @@ export function AuthProvider({
     //    so this is a safety net: if it never fires (e.g. a flaky
     //    subscription) we still complete the round-trip.
     const linkingSub = Linking.addEventListener('url', ({ url }) => {
+      console.log('[auth-google] Linking url event:', url);
       void handleAuthCallback(url);
     });
     Linking.getInitialURL()
       .then((url) => {
+        console.log('[auth-google] Linking.getInitialURL:', url);
         if (url) void handleAuthCallback(url);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[auth-google] Linking.getInitialURL threw', err);
         // Linking.getInitialURL can reject if the native module is
         // unavailable; the listener above will catch warm-start URLs.
       });
@@ -255,14 +259,29 @@ export function AuthProvider({
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<void> => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: 'enchufate://auth/callback',
-      },
-    });
-    if (error) {
-      throw new AuthError(error.message, { cause: error });
+    console.log('[auth-google] 2a) AuthProvider.signInWithGoogle called');
+    console.log('[auth-google] 2b) env URL:', process.env.EXPO_PUBLIC_SUPABASE_URL?.slice(0, 40) + '...');
+    try {
+      console.log('[auth-google] 2c) calling supabase.auth.signInWithOAuth({ google, enchufate://auth/callback })');
+      const result = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'enchufate://auth/callback',
+        },
+      });
+      console.log('[auth-google] 2d) signInWithOAuth resolved, result:', JSON.stringify({
+        hasData: !!result.data,
+        hasUrl: !!result.data?.url,
+        urlStart: result.data?.url?.slice(0, 60),
+        provider: result.data?.provider,
+        error: result.error?.message,
+      }));
+      if (result.error) {
+        throw new AuthError(result.error.message, { cause: result.error });
+      }
+    } catch (err) {
+      console.error('[auth-google] 2e) signInWithOAuth threw:', err);
+      throw err;
     }
   }, []);
 
@@ -354,13 +373,20 @@ export function useAuth(): AuthContextValue {
  * exception that's already been handled there.
  */
 async function handleAuthCallback(url: string): Promise<void> {
-  if (!url.startsWith('enchufate://auth/callback')) return;
+  console.log('[auth-google] handleAuthCallback called with url:', url);
+  if (!url.startsWith('enchufate://auth/callback')) {
+    console.log('[auth-google] handleAuthCallback: not a callback URL, skipping');
+    return;
+  }
   try {
+    console.log('[auth-google] calling supabase.auth.exchangeCodeForSession...');
     const { error } = await supabase.auth.exchangeCodeForSession(url);
     if (error) {
-      console.warn('[auth] exchangeCodeForSession failed', error.message);
+      console.warn('[auth-google] exchangeCodeForSession failed', error.message);
+    } else {
+      console.log('[auth-google] exchangeCodeForSession succeeded');
     }
   } catch (err) {
-    console.warn('[auth] exchangeCodeForSession threw', err);
+    console.warn('[auth-google] exchangeCodeForSession threw', err);
   }
 }

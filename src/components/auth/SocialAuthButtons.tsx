@@ -37,21 +37,30 @@ export function SocialAuthButtons(): React.JSX.Element {
   const [busy, setBusy] = useState<boolean>(false);
 
   const handleGoogle = async (): Promise<void> => {
-    if (busy) return;
+    console.log('[auth-google] 1) button pressed at', new Date().toISOString());
+    if (busy) {
+      console.log('[auth-google] 1b) already busy, ignoring press');
+      return;
+    }
     setBusy(true);
     try {
+      console.log('[auth-google] 2) calling signInWithGoogle()...');
       await signInWithGoogle();
+      console.log('[auth-google] 3) signInWithGoogle() resolved (webview should be opening)');
       // The webview / browser is taking over. The auth state change
       // listener will bring us back into the app once the user
       // completes Google auth and the redirect URL fires.
     } catch (err) {
+      console.error('[auth-google] ERR signInWithGoogle threw:', err);
       const message =
         err instanceof Error
           ? err.message
           : 'No pudimos iniciar sesión con Google.';
+      console.log('[auth-google] showing Alert with message:', message);
       Alert.alert('Error con Google', message);
     } finally {
       setBusy(false);
+      console.log('[auth-google] 4) handleGoogle finally, busy=false');
     }
   };
 
