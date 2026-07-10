@@ -24,6 +24,12 @@ export interface ButtonProps
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   fullWidth?: boolean;
+  /**
+   * Override the label text color from the variant's default. Useful when
+   * the variant's `background` is also being overridden (e.g. a "primary"
+   * button with a white background needs dark text, not `textOnPrimary`).
+   */
+  textColor?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -37,6 +43,7 @@ export function Button({
   leftIcon,
   rightIcon,
   fullWidth = false,
+  textColor,
   style,
   ...rest
 }: ButtonProps): React.JSX.Element {
@@ -80,7 +87,7 @@ export function Button({
             style={[
               styles.label,
               sizeStyles.text,
-              { color: variantStyles.textColor(theme) },
+              { color: textColor ?? variantStyles.textColor(theme) },
             ]}
             numberOfLines={1}
           >

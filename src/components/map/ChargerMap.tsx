@@ -16,6 +16,7 @@ import type { Charger, LatLng } from '@/data/types';
 import { useTheme } from '@/theme';
 
 import { ChargerMarker } from './ChargerMarker';
+import { ChargerMarkerImage } from './ChargerMarkerImage';
 
 export interface ChargerMapHandle {
   /** Animate the camera to the given coordinates. */
@@ -33,8 +34,10 @@ export interface ChargerMapProps {
 }
 
 const DEFAULT_REGION: Region = {
-  latitude: -34.6037,
-  longitude: -58.3816,
+  // Montevideo, Uruguay — center of the brand's home market.
+  // 0.08° delta ≈ 8–9 km wide, a comfortable neighborhood view.
+  latitude: -34.9036,
+  longitude: -56.158,
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
@@ -117,14 +120,11 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
               identifier={c.id}
               coordinate={c.location}
               onPress={() => onSelectCharger(c.id)}
-              tracksViewChanges={false}
+              tracksViewChanges
               anchor={{ x: 0.5, y: 0.5 }}
               zIndex={selectedId === c.id ? 99 : 1}
             >
-              <ChargerMarker
-                charger={c}
-                isSelected={selectedId === c.id}
-              />
+              <ChargerMarkerImage charger={c} />
             </Marker>
           ))}
         </MapView>

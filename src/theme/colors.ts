@@ -1,14 +1,14 @@
 /**
- * Color tokens — EV-inspired, premium minimalist palette.
+ * Color tokens — white + electric orange brand palette.
  *
  * Light theme is the default. Tokens are dark-ready; a future `dark` palette
  * can be added without renaming the keys below.
  */
 export const colors = {
-  // Brand
-  primary: '#00C896',
-  primaryDark: '#00A878',
-  primaryLight: '#4FE3B8',
+  // Brand — electric orange
+  primary: '#FF6600',
+  primaryDark: '#E55500',
+  primaryLight: '#FFD1B0',
 
   // Accent
   secondary: '#3B82F6',
@@ -37,7 +37,8 @@ export const colors = {
   info: '#3B82F6',
 
   // Charger status (mirrored in the marker / badge system)
-  chargerAvailable: '#00C896',
+  // Note: stays green so it doesn't compete with the brand orange.
+  chargerAvailable: '#10B981',
   chargerReserved: '#F59E0B',
   chargerBusy: '#94A3B8',
 

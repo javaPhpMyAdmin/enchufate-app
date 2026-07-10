@@ -3,22 +3,35 @@
  *
  * Two modes driven by the auth status:
  *   - unauthenticated: welcoming copy + "Iniciá sesión" CTA.
- *   - authenticated: full profile screen — header, stats (if host),
- *     "Editar perfil" / "Cerrar sesión" action buttons, and a
- *     "Preferencias" menu with 5 stub items.
+ *   - authenticated: full profile screen — header, stats, "Mis cargadores"
+ *     section (moved from the Home tab when that became a marketing
+ *     landing), "Editar perfil" / "Ver mi perfil público" action buttons,
+ *     and a "Preferencias" menu with 5 stub items.
+ *
+ * The "Mis cargadores" section shows the host's own chargers (with the
+ * same overflow menu — Editar / Eliminar — used in the old home tab).
  *
  * Stub menu items fire an `Alert.alert("Próximamente", …)` and disappear
  * once Phase 9 wires up real notification settings, payment methods, etc.
  */
-import React, { useCallback, useMemo } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ListRenderItemInfo,
+} from 'react-native';
 import {
   Bell,
   CreditCard,
   HelpCircle,
   Lock,
   LogOut,
+  Plus,
   ScrollText,
   Share2,
 } from 'lucide-react-native';
@@ -32,12 +45,22 @@ import {
   Screen,
 } from '@/components/ui';
 import {
+  DeleteConfirmModal,
+  OwnerChargerCard,
+} from '@/components/charger';
+import {
+  ChargerDetailSheet,
+  type ChargerDetailSheetHandle,
+} from '@/components/sheets';
+import {
   ProfileHeader,
   ProfileMenuItem,
   ProfileStats,
 } from '@/components/profile';
 import { useAuth } from '@/features/auth';
-import { useMyChargers } from '@/data/chargerStore';
+import { chargerStore, useMyChargers } from '@/data/chargerStore';
+import { mockUsers } from '@/data/mocks/users';
+import type { Charger, User } from '@/data/types';
 import { useTheme } from '@/theme';
 
 export default function ProfileScreen(): React.JSX.Element {
@@ -144,6 +167,8 @@ export default function ProfileScreen(): React.JSX.Element {
 // Authenticated body — kept as a separate component so the main
 // `ProfileScreen` reads top-to-bottom and so the unauthenticated branch
 // short-circuits cleanly.
+//
+// Also owns the "Mis cargadores" section (moved from the old Home tab).
 // ---------------------------------------------------------------------------
 
 interface ProfileBodyProps {
@@ -168,14 +193,97 @@ function ProfileBody({
   onStubPress,
 }: ProfileBodyProps): React.JSX.Element {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useAuth();
   const chargers = useMyChargers(userId);
+  const detailSheetRef = useRef<ChargerDetailSheetHandle | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Charger | null>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
 
   // The current user is always a "host" if they have at least one charger,
   // even if their account wasn't created with the isHost flag set.
   const showStats = useMemo(
     () => isHost || chargers.length > 0,
     [isHost, chargers.length],
+  );
+
+  // Build a `User` record for the detail sheet. The host's signed-in
+  // session supplies a fallback so newly published chargers (no entry
+  // in the seed) still render correctly.
+  const selfUser: User | null = useMemo(() => {
+    if (!session) return null;
+    const u = session.user;
+    return {
+      ...u,
+      isHost: true,
+      rating: u.rating || 5,
+    };
+  }, [session]);
+
+  // The flat `User` index lets us resolve seed owners quickly.
+  const userIndex = useMemo<Record<string, User>>(() => {
+    const map: Record<string, User> = {};
+    for (const u of mockUsers) map[u.id] = u;
+    return map;
+  }, []);
+
+  const handlePublish = useCallback((): void => {
+    router.push('/publish');
+  }, [router]);
+
+  const handleOpenDetail = useCallback(
+    (id: string) => {
+      const c = chargerStore.byId(id);
+      if (!c) return;
+      const owner = userIndex[c.ownerId] ?? selfUser;
+      if (!owner) return;
+      detailSheetRef.current?.show(c, owner);
+    },
+    [userIndex, selfUser],
+  );
+
+  const handleEditCharger = useCallback(
+    (id: string) => {
+      router.push({ pathname: '/publish', params: { edit: id } });
+    },
+    [router],
+  );
+
+  const handleDeletePrompt = useCallback((id: string) => {
+    const c = chargerStore.byId(id);
+    if (c) setPendingDelete(c);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async (): Promise<void> => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await chargerStore.remove(pendingDelete.id);
+      setPendingDelete(null);
+      Alert.alert(
+        'Cargador eliminado',
+        'Tu cargador ya no está visible en el mapa.',
+      );
+    } catch (err) {
+      console.warn('[profile] delete failed', err);
+      Alert.alert('Error', 'No pudimos eliminar tu cargador. Probá de nuevo.');
+    } finally {
+      setDeleting(false);
+    }
+  }, [pendingDelete]);
+
+  const renderChargerItem = useCallback(
+    ({ item }: ListRenderItemInfo<Charger>) => (
+      <View style={styles.chargerItem}>
+        <OwnerChargerCard
+          charger={item}
+          onPress={handleOpenDetail}
+          onEdit={handleEditCharger}
+          onDelete={handleDeletePrompt}
+        />
+      </View>
+    ),
+    [handleOpenDetail, handleEditCharger, handleDeletePrompt],
   );
 
   if (!session) return <View />;
@@ -191,6 +299,74 @@ function ProfileBody({
           chargerCount={chargers.length}
         />
       ) : null}
+
+      {/* Mis cargadores — moved from the old Home tab. */}
+      <View style={styles.chargersSection}>
+        <View style={styles.chargersHeaderRow}>
+          <Text
+            style={[
+              theme.typography.h3,
+              { color: theme.colors.text, flex: 1 },
+            ]}
+          >
+            Mis cargadores
+          </Text>
+          <Pressable
+            onPress={handlePublish}
+            accessibilityLabel="Publicar nuevo cargador"
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.publishButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.radii.full,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <Plus color={theme.colors.textOnPrimary} size={16} />
+            <Text
+              style={[
+                theme.typography.smallBold,
+                { color: theme.colors.textOnPrimary, marginLeft: 4 },
+              ]}
+            >
+              Publicar nuevo
+            </Text>
+          </Pressable>
+        </View>
+
+        {chargers.length === 0 ? (
+          <View style={styles.chargersEmpty}>
+            <Text
+              style={[
+                theme.typography.body,
+                { color: theme.colors.textMuted, textAlign: 'center' },
+              ]}
+            >
+              Todavía no publicaste ningún cargador. Tocá "Publicar nuevo"
+              para empezar.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text
+              style={[
+                theme.typography.body,
+                { color: theme.colors.textMuted, marginBottom: 12 },
+              ]}
+            >
+              {`${chargers.length} ${chargers.length === 1 ? 'cargador publicado' : 'cargadores publicados'}`}
+            </Text>
+            <FlatList
+              data={chargers}
+              keyExtractor={(c) => c.id}
+              renderItem={renderChargerItem}
+              scrollEnabled={false}
+            />
+          </>
+        )}
+      </View>
 
       <View style={styles.actions}>
         <Button
@@ -262,6 +438,17 @@ function ProfileBody({
           style={styles.logoutButton}
         />
       </View>
+
+      <ChargerDetailSheet
+        ref={detailSheetRef}
+        onContact={(ownerId) => console.log('[profile] contactar', ownerId)}
+      />
+      <DeleteConfirmModal
+        visible={!!pendingDelete}
+        loading={deleting}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </Screen>
   );
 }
@@ -297,5 +484,24 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: '#FEF2F2',
     borderColor: '#FECACA',
+  },
+  chargersSection: {},
+  chargersHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  publishButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  chargersEmpty: {
+    paddingVertical: 16,
+  },
+  chargerItem: {
+    marginBottom: 12,
   },
 });

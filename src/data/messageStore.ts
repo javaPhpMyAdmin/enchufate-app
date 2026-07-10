@@ -60,13 +60,22 @@ function notify(): void {
   }
 }
 
+// Cached tuple exposed by `getSnapshot`. `useSyncExternalStore` compares
+// snapshots with `Object.is`; returning a fresh array on every call makes
+// React think the data changes on every render and re-renders forever.
+// We rebuild the tuple only when a setter actually mutates state, so the
+// reference stays stable between mutations.
+let snapshot: readonly [Conversation[], Message[]] = [[], []];
+
 function setConversations(next: Conversation[]): void {
   conversations = next;
+  snapshot = [conversations, messages];
   notify();
 }
 
 function setMessages(next: Message[]): void {
   messages = next;
+  snapshot = [conversations, messages];
   notify();
 }
 
@@ -76,7 +85,7 @@ function setMessages(next: Message[]): void {
  * with a single hook.
  */
 function getSnapshot(): readonly [Conversation[], Message[]] {
-  return [conversations, messages];
+  return snapshot;
 }
 
 function subscribe(listener: () => void): () => void {

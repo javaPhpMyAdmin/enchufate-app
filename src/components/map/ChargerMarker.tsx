@@ -1,16 +1,13 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Zap } from 'lucide-react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import React from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 
-import { useTheme } from '@/theme';
 import type { Charger } from '@/data/types';
 
-const MARKER_SIZE = 44;
+const ICON_SIZE = 64;
+// DIAGNOSTIC: temporarily use icon.png to confirm the marker works with
+// any image. If this renders, the issue is specifically cargador.png
+// (probably its 2000x2000 size).
+const CHARGER_ICON = require('../../../assets/icon.png');
 
 export interface ChargerMarkerProps {
   charger: Charger;
@@ -18,88 +15,56 @@ export interface ChargerMarkerProps {
 }
 
 /**
- * Custom map pin. Renders a status-colored rounded square with an EV bolt
- * centered. Animates scale-up when selected.
+ * Custom map pin. Plain `View` + `Image`, no animations.
  *
- * This is a presentational component — it must be placed inside a
- * `react-native-maps` `<Marker>`, which is responsible for hit testing.
+ * Diagnostic version: the previous `Animated.Image` (reanimated) version
+ * did not render inside `react-native-maps` <Marker>. This stripped-down
+ * version uses a plain `Image` to confirm the asset itself loads and
+ * renders. If the chargers appear with this version, the issue is the
+ * reanimated `Animated.Image` integration, not the asset.
+ *
+ * TODO: re-introduce the scale-on-select animation using a technique
+ * that works inside <Marker> (e.g. `useState`-driven re-render with
+ * `tracksViewChanges={true}`, or a separate overlay for the selected
+ * state).
  */
 export function ChargerMarker({
   charger,
-  isSelected = false,
 }: ChargerMarkerProps): React.JSX.Element {
-  const theme = useTheme();
-  const scale = useSharedValue(1);
-
-  const color = statusColor(theme, charger.status);
-
-  useEffect(() => {
-    scale.value = withSpring(isSelected ? 1.18 : 1, {
-      damping: 12,
-      stiffness: 180,
-    });
-  }, [isSelected, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const statusLabel =
+    charger.status === 'available'
+      ? 'disponible'
+      : charger.status === 'reserved'
+      ? 'reservado'
+      : 'ocupado';
 
   return (
-    <Animated.View
-      style={[
-        styles.pin,
-        {
-          backgroundColor: color,
-          borderColor: theme.colors.background,
-          shadowColor: theme.colors.shadow,
-        },
-        animatedStyle,
-      ]}
-    >
-      <View
-        style={[
-          styles.inner,
-          { backgroundColor: 'rgba(255, 255, 255, 0.15)' },
-        ]}
-      >
-        <Zap color="#FFFFFF" size={22} fill="#FFFFFF" strokeWidth={1.5} />
-      </View>
-    </Animated.View>
+    <View style={styles.pin}>
+      <Image
+        source={CHARGER_ICON}
+        style={styles.icon}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Cargador ${statusLabel}`}
+      />
+    </View>
   );
-}
-
-function statusColor(
-  theme: ReturnType<typeof useTheme>,
-  status: Charger['status'],
-): string {
-  switch (status) {
-    case 'available':
-      return theme.colors.chargerAvailable;
-    case 'reserved':
-      return theme.colors.chargerReserved;
-    case 'busy':
-      return theme.colors.chargerBusy;
-  }
 }
 
 const styles = StyleSheet.create({
   pin: {
-    width: MARKER_SIZE,
-    height: MARKER_SIZE,
-    borderRadius: 12,
+    width: ICON_SIZE,
+    height: ICON_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    // DIAGNOSTIC: temporary red background to confirm the marker renders.
+    // Remove once the image is confirmed working.
+    backgroundColor: 'red',
   },
-  inner: {
-    width: MARKER_SIZE - 14,
-    height: MARKER_SIZE - 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  icon: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
   },
 });

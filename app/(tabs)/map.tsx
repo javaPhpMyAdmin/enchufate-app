@@ -76,6 +76,21 @@ export default function MapScreen(): React.JSX.Element {
     };
   }, []);
 
+  // As soon as we have a user location, pan the map to it and zoom in so
+  // the surrounding area (not a continent-wide view) is what the user sees
+  // first. We defer one frame so the map ref is guaranteed to be set even
+  // if the location arrives on the very first render.
+  useEffect(() => {
+    if (!userLocation) return;
+    const id = requestAnimationFrame(() => {
+      // `animateTo(coords, zoomDelta)` adds `zoomDelta` to the base zoom
+      // of 15 — `0` lands at a comfortable neighborhood view, closer than
+      // the initial region (0.08 deg ≈ 8 km wide).
+      mapRef.current?.animateTo(userLocation, 0);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [userLocation]);
+
   // Index users by id once for fast lookup.
   const userById = useMemo<Record<string, User>>(() => {
     const map: Record<string, User> = {};
@@ -111,6 +126,15 @@ export default function MapScreen(): React.JSX.Element {
     if (!selectedCharger) return null;
     return getUserById(mockUsers, selectedCharger.ownerId) ?? null;
   }, [selectedCharger]);
+
+  // Whenever a charger is selected (from the map marker OR from the list
+  // card), open the bottom sheet for it. This is what makes the marker
+  // press on the map actually surface the bottom sheet.
+  useEffect(() => {
+    if (selectedCharger && selectedOwner) {
+      detailSheetRef.current?.show(selectedCharger, selectedOwner);
+    }
+  }, [selectedCharger, selectedOwner]);
 
   const handleSelectCharger = useCallback((id: string) => {
     setSelectedId(id);
@@ -286,7 +310,6 @@ export default function MapScreen(): React.JSX.Element {
       <ChargerDetailSheet
         ref={detailSheetRef}
         onContact={handleContact}
-        onViewProfile={handleViewProfile}
       />
       <FiltersSheet
         ref={filtersSheetRef}

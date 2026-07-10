@@ -25,8 +25,8 @@ No backend, no auth, no real payments in this change. Everything is mock data so
 ## Quickstart
 
 ```bash
-npm install
-npx expo start
+pnpm install
+pnpm start
 ```
 
 Then press `i` for iOS, `a` for Android, or `w` for web.
@@ -75,12 +75,12 @@ src/
 
 | Script | What it does |
 |---|---|
-| `npm start` | Start the Expo dev server |
-| `npm run android` | Start and open Android |
-| `npm run ios` | Start and open iOS |
-| `npm run web` | Start the web bundle |
-| `npm run lint` | Run ESLint (expo config) |
-| `npm run typecheck` | Run `tsc --noEmit` |
+| `pnpm start` | Start the Expo dev server |
+| `pnpm android` | Start and open Android |
+| `pnpm ios` | Start and open iOS |
+| `pnpm web` | Start the web bundle |
+| `pnpm lint` | Run ESLint (expo config) |
+| `pnpm typecheck` | Run `tsc --noEmit` |
 
 ## What's next
 

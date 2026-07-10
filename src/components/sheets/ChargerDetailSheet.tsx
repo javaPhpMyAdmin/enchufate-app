@@ -1,3 +1,24 @@
+/**
+ * ChargerDetailSheet — bottom sheet shown when a charger is selected on
+ * the map.
+ *
+ * Two states driven by the imperative `show(charger, owner)`:
+ *   - hidden: index = -1
+ *   - visible: snapped to the first snap point so the user immediately
+ *     sees the highlight, can pull it up to full height.
+ *
+ * Layout (matches the brand reference):
+ *   ┌────────────────────────────────────────┐
+ *   │  ──── (drag handle)                    │
+ *   │  [Avatar]  Garaje de Carlos   [● Disp] │
+ *   │            ★ 4.9 (128 reseñas)         │
+ *   │  ─────────────────────────────────────  │
+ *   │  ⚡ POTENCIA      💶 PRECIO           │
+ *   │     22 kW            1.50€/h           │
+ *   │  ─────────────────────────────────────  │
+ *   │  [💬 Contactar]  [📍 Cómo llegar]      │
+ *   └────────────────────────────────────────┘
+ */
 import React, {
   forwardRef,
   useCallback,
@@ -13,16 +34,22 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Star, Zap, MapPin, MessageCircle, User as UserIcon, Navigation } from 'lucide-react-native';
+import {
+  Banknote,
+  MessageCircle,
+  Navigation,
+  Star,
+  Zap,
+} from 'lucide-react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 
-import { Avatar, Badge, Divider } from '@/components/ui';
+import { Avatar, Divider } from '@/components/ui';
 import type { Charger, ChargerStatus, User } from '@/data/types';
-import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
+import { STATUS_LABELS } from '@/data/types';
 import {
   formatCountdown,
   formatPower,
@@ -38,18 +65,16 @@ export interface ChargerDetailSheetHandle {
 }
 
 export interface ChargerDetailSheetProps {
-  /** Stub fired when the user taps "Contactar". Receives owner id. */
+  /** Fired when the user taps "Contactar". Receives owner id. */
   onContact: (ownerId: string) => void;
-  /** Stub fired when the user taps "Ver perfil". Receives owner id. */
-  onViewProfile: (ownerId: string) => void;
 }
 
-const SNAP_POINTS = ['18%', '55%', '92%'];
+const SNAP_POINTS = ['35%', '60%', '92%'];
 
 export const ChargerDetailSheet = forwardRef<
   ChargerDetailSheetHandle,
   ChargerDetailSheetProps
->(function ChargerDetailSheet({ onContact, onViewProfile }, ref) {
+>(function ChargerDetailSheet({ onContact }, ref) {
   const theme = useTheme();
   const sheetRef = useRef<BottomSheet | null>(null);
 
@@ -62,7 +87,6 @@ export const ChargerDetailSheet = forwardRef<
       show: (c, o) => {
         setCharger(c);
         setOwner(o);
-        // Snap to peek so the user sees the highlight immediately.
         sheetRef.current?.snapToIndex(0);
       },
       close: () => {
@@ -130,7 +154,6 @@ export const ChargerDetailSheet = forwardRef<
             charger={charger}
             owner={owner}
             onContact={onContact}
-            onViewProfile={onViewProfile}
             onDirections={handleDirections}
             onClose={() => sheetRef.current?.close()}
           />
@@ -140,11 +163,14 @@ export const ChargerDetailSheet = forwardRef<
   );
 });
 
+// ---------------------------------------------------------------------------
+// Detail content
+// ---------------------------------------------------------------------------
+
 interface DetailContentProps {
   charger: Charger;
   owner: User;
   onContact: (ownerId: string) => void;
-  onViewProfile: (ownerId: string) => void;
   onDirections: () => void;
   onClose: () => void;
 }
@@ -153,247 +179,203 @@ function DetailContent({
   charger,
   owner,
   onContact,
-  onViewProfile,
   onDirections,
   onClose,
 }: DetailContentProps): React.JSX.Element {
   const theme = useTheme();
   return (
     <>
-        {/* Header — owner */}
-        <View style={styles.header}>
-          <Avatar source={owner.avatarUrl} name={owner.name} size="lg" />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={[theme.typography.bodyBold, { color: theme.colors.text }]}>
-              {owner.name}
-            </Text>
-            <View style={styles.ratingRow}>
-              <Star
-                color={theme.colors.warning}
-                fill={theme.colors.warning}
-                size={14}
-              />
-              <Text
-                style={[
-                  theme.typography.small,
-                  { color: theme.colors.textMuted, marginLeft: 4 },
-                ]}
-              >
-                {formatRating(owner.rating)} · {formatReviewCount(owner.reviewCount)}
-              </Text>
-            </View>
-          </View>
-          <StatusChip status={charger.status} />
-        </View>
-
-        <Text
-          style={[
-            theme.typography.h3,
-            { color: theme.colors.text, marginTop: 16 },
-          ]}
-        >
-          {charger.title}
-        </Text>
-
-        <View style={[styles.specsRow, { marginTop: 12 }]}>
-          <Spec
-            icon={<Zap color={theme.colors.primary} size={18} />}
-            label="Conector"
-            value={CONNECTOR_LABELS[charger.type]}
-          />
-          <Spec
-            icon={<MapPin color={theme.colors.textMuted} size={18} />}
-            label="Potencia"
-            value={formatPower(charger.powerKw)}
-          />
-        </View>
-        <View style={styles.specsRow}>
-          <Spec
-            icon={<Navigation color={theme.colors.textMuted} size={18} />}
-            label="Precio"
-            value={formatPrice(charger.pricePerHour)}
-          />
-          <Spec
-            icon={<Star color={theme.colors.textMuted} size={18} />}
-            label="Rating"
-            value={formatRating(charger.rating)}
-          />
-        </View>
-
-        {/* Status / countdown */}
-        {charger.status !== 'available' && charger.availableInMinutes ? (
-          <View
+      {/* Header — avatar + owner name + rating + status pill */}
+      <View style={styles.header}>
+        <Avatar source={owner.avatarUrl} name={owner.name} size="lg" />
+        <View style={styles.headerText}>
+          <Text
             style={[
-              styles.countdownBox,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
+              theme.typography.h2,
+              { color: theme.colors.text, marginBottom: 4 },
             ]}
+            numberOfLines={1}
           >
-            <Text style={[theme.typography.smallBold, { color: theme.colors.text }]}>
-              {charger.status === 'reserved' ? 'Reservado' : 'Ocupado'}
+            {owner.name}
+          </Text>
+          <View style={styles.ratingRow}>
+            <Star
+              color={theme.colors.warning}
+              fill={theme.colors.warning}
+              size={14}
+            />
+            <Text
+              style={[
+                theme.typography.small,
+                { color: theme.colors.textMuted, marginLeft: 6 },
+              ]}
+            >
+              {`${formatRating(owner.rating)} (${formatReviewCount(owner.reviewCount)} reseñas)`}
+            </Text>
+          </View>
+        </View>
+        <StatusPill status={charger.status} />
+      </View>
+
+      <Divider style={styles.divider} />
+
+      {/* Specs: POTENCIA | PRECIO */}
+      <View style={styles.specsRow}>
+        <View style={styles.spec}>
+          <Zap color={theme.colors.text} size={20} />
+          <View style={styles.specText}>
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.colors.textMuted },
+              ]}
+            >
+              POTENCIA
             </Text>
             <Text
               style={[
-                theme.typography.bodyBold,
-                { color: theme.colors.warning, marginTop: 2 },
+                theme.typography.h3,
+                { color: theme.colors.text, marginTop: 2 },
               ]}
             >
-              Libre en {formatCountdown(charger.availableInMinutes)}
+              {formatPower(charger.powerKw)}
             </Text>
           </View>
-        ) : null}
+        </View>
+        <View style={styles.specDivider} />
+        <View style={styles.spec}>
+          <Banknote color={theme.colors.text} size={20} />
+          <View style={styles.specText}>
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.colors.textMuted },
+              ]}
+            >
+              PRECIO
+            </Text>
+            <Text
+              style={[
+                theme.typography.h3,
+                { color: theme.colors.text, marginTop: 2 },
+              ]}
+            >
+              {`${formatPrice(charger.pricePerHour)}/h`}
+            </Text>
+          </View>
+        </View>
+      </View>
 
-        <View style={{ marginTop: 12 }}>
-          <Text style={[theme.typography.small, { color: theme.colors.textMuted }]}>
-            {charger.address} · {charger.neighborhood}
+      {/* Countdown for non-available chargers */}
+      {charger.status !== 'available' && charger.availableInMinutes ? (
+        <View
+          style={[
+            styles.countdownBox,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[theme.typography.smallBold, { color: theme.colors.text }]}
+          >
+            {charger.status === 'reserved' ? 'Reservado' : 'Ocupado'}
+          </Text>
+          <Text
+            style={[
+              theme.typography.bodyBold,
+              { color: theme.colors.warning, marginTop: 2 },
+            ]}
+          >
+            {`Libre en ${formatCountdown(charger.availableInMinutes)}`}
           </Text>
         </View>
+      ) : null}
 
-        <Divider style={{ marginVertical: 12 }} />
+      <Divider style={styles.divider} />
 
-        <Text style={[theme.typography.body, { color: theme.colors.text }]}>
-          {charger.description}
-        </Text>
-
-        {charger.amenities && charger.amenities.length > 0 ? (
-          <View style={styles.amenitiesRow}>
-            {charger.amenities.map((a) => (
-              <View
-                key={a}
-                style={[
-                  styles.amenityChip,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    theme.typography.caption,
-                    { color: theme.colors.textMuted },
-                  ]}
-                >
-                  {a}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <View style={styles.actions}>
-          <ActionButton
-            icon={<MessageCircle color={theme.colors.textOnPrimary} size={18} />}
-            label="Contactar"
-            variant="primary"
-            onPress={() => {
-              onContact(owner.id);
-              onClose();
-            }}
-          />
-          <ActionButton
-            icon={<UserIcon color={theme.colors.text} size={18} />}
-            label="Ver perfil"
-            variant="secondary"
-            onPress={() => {
-              onViewProfile(owner.id);
-              onClose();
-            }}
-          />
-          <ActionButton
-            icon={<Navigation color={theme.colors.text} size={18} />}
-            label="Cómo llegar"
-            variant="secondary"
-            onPress={onDirections}
-          />
-        </View>
+      {/* Actions — Contactar | Cómo llegar */}
+      <View style={styles.actions}>
+        <Pressable
+          onPress={() => {
+            onContact(owner.id);
+            onClose();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Contactar al anfitrión"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.actionButtonSecondary,
+            { opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <MessageCircle color={theme.colors.text} size={18} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.text, marginLeft: 8 },
+            ]}
+          >
+            Contactar
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={onDirections}
+          accessibilityRole="button"
+          accessibilityLabel="Cómo llegar al cargador"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.actionButtonPrimary,
+            { opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <Navigation color={theme.colors.textOnPrimary} size={18} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.textOnPrimary, marginLeft: 8 },
+            ]}
+          >
+            Cómo llegar
+          </Text>
+        </Pressable>
+      </View>
     </>
   );
 }
 
-function StatusChip({ status }: { status: ChargerStatus }): React.JSX.Element {
-  const statusToTone: Record<ChargerStatus, 'available' | 'reserved' | 'busy'> = {
-    available: 'available',
-    reserved: 'reserved',
-    busy: 'busy',
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function StatusPill({
+  status,
+}: {
+  status: ChargerStatus;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const tone: Record<ChargerStatus, { fg: string; bg: string }> = {
+    available: { fg: theme.colors.success, bg: '#10B98122' },
+    reserved: { fg: theme.colors.warning, bg: '#F59E0B22' },
+    busy: { fg: theme.colors.textMuted, bg: '#94A3B822' },
   };
+  const { fg, bg } = tone[status];
   return (
-    <Badge status={statusToTone[status]} tone="solid" label={STATUS_LABELS[status]} />
-  );
-}
-
-function Spec({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <View style={styles.spec}>
-      <View style={styles.specHeader}>
-        {icon}
-        <Text
-          style={[
-            theme.typography.caption,
-            { color: theme.colors.textMuted, marginLeft: 6 },
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
-      <Text style={[theme.typography.bodyBold, { color: theme.colors.text, marginTop: 4 }]}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  variant,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  variant: 'primary' | 'secondary';
-  onPress: () => void;
-}): React.JSX.Element {
-  const theme = useTheme();
-  const isPrimary = variant === 'primary';
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.actionButton,
-        {
-          backgroundColor: isPrimary
-            ? theme.colors.primary
-            : theme.colors.surface,
-          borderColor: isPrimary ? 'transparent' : theme.colors.border,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
+    <View
+      style={[styles.statusPill, { backgroundColor: bg }]}
+      accessibilityLabel={`Estado: ${STATUS_LABELS[status]}`}
     >
-      {icon}
+      <View style={[styles.statusDot, { backgroundColor: fg }]} />
       <Text
         style={[
-          theme.typography.smallBold,
-          {
-            color: isPrimary ? theme.colors.textOnPrimary : theme.colors.text,
-            marginLeft: 6,
-          },
+          theme.typography.small,
+          { color: fg, marginLeft: 6, fontWeight: '600' },
         ]}
       >
-        {label}
+        {STATUS_LABELS[status]}
       </Text>
-    </Pressable>
+    </View>
   );
 }
 
@@ -407,23 +389,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  headerText: {
+    flex: 1,
+    marginLeft: 12,
+  },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    marginLeft: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  divider: {
+    marginVertical: 16,
   },
   specsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 6,
+    alignItems: 'stretch',
   },
   spec: {
     flex: 1,
-    paddingVertical: 8,
-  },
-  specHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  specText: {
+    flex: 1,
+  },
+  specDivider: {
+    width: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.08)',
+    marginHorizontal: 16,
   },
   countdownBox: {
     marginTop: 14,
@@ -431,31 +437,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  amenitiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  amenityChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
-    borderWidth: 1,
-  },
   actions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 20,
+    gap: 12,
   },
   actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 1,
+  },
+  actionButtonSecondary: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+  },
+  actionButtonPrimary: {
+    backgroundColor: '#FF6600',
+    borderColor: 'transparent',
   },
 });
