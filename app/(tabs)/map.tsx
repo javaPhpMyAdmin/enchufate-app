@@ -24,6 +24,7 @@ import {
   type FiltersSheetHandle,
 } from '@/components/sheets';
 import {
+  ChargerLoadingOverlay,
   ChargerMap,
   MapControls,
   type ChargerMapHandle,
@@ -32,6 +33,7 @@ import {
 import { useAuth } from '@/features/auth';
 import { fetchProfileById } from '@/features/auth/profileMapper';
 import { useChargers, chargerStore } from '@/data/chargerStore';
+import { useChargersQuery } from '@/hooks/useChargersQuery';
 import { mockUsers } from '@/data/mocks/users';
 import { DEFAULT_FILTERS, type Charger, type ChargerFilters, type LatLng, type User } from '@/data/types';
 import { applyFilters } from '@/domain/charger';
@@ -114,6 +116,7 @@ export default function MapScreen(): React.JSX.Element {
   // The store is the single source of truth. Subscribing here means
   // newly published chargers appear on the map without a refresh.
   const allChargers = useChargers();
+  const { isLoading: chargersLoading } = useChargersQuery();
 
   // Apply filters + text search.
   const visibleChargers = useMemo<Charger[]>(() => {
@@ -376,6 +379,10 @@ export default function MapScreen(): React.JSX.Element {
           </View>
         )}
       </SafeAreaView>
+
+      {chargersLoading && allChargers.length === 0 && (
+        <ChargerLoadingOverlay />
+      )}
 
       <ChargerDetailSheet
         ref={detailSheetRef}

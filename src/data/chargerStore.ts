@@ -1,80 +1,37 @@
 /**
- * In-memory CRUD store for chargers, backed by Supabase.
+ * Charger store — dual interface.
  *
- * Phase 3 introduces the host flow (publish / edit / delete). Previously
- * the map screen imported a frozen `mockChargers` array; now both the map
- * and the owner dashboard read from this single source of truth so newly
- * published chargers appear everywhere immediately.
+ * React consumers:
+ *   useChargers() / useMyChargers() delegate to TanStack Query for
+ *   automatic cache management, background refetch, loading/error
+ *   states, and deduplication.
+ *
+ * Imperative consumers (publish flow, owner dashboard):
+ *   chargerStore.add() / .update() / .remove() write through to
+ *   Supabase, then invalidate the TanStack Query cache so React
+ *   components re-render automatically.
  *
  * Design notes:
- * - Tiny pub/sub: `subscribe(listener)` returns an unsubscribe; listeners
- *   are notified after every successful mutation. React consumers wire up
- *   via `useChargers()` / `useMyChargers()` which use `useSyncExternalStore`
- *   (React 18+ stable).
- * - Persistence: the canonical data lives in Supabase. On first access the
- *   store fetches the full list; subsequent mutations write through to the
- *   DB and optimistically update the in-memory cache.
- * - Graceful degradation: if Supabase is unreachable the store returns an
- *   empty array rather than crashing.
+ * - The old pub/sub + useSyncExternalStore pattern is removed.
+ *   TanStack Query is the single source of truth for React rendering.
+ * - Imperative methods no longer maintain a parallel in-memory cache;
+ *   they rely on the query cache being invalidated after mutations.
+ * - Graceful degradation: if Supabase is unreachable, queries return
+ *   an empty array rather than crashing.
  */
-import { useSyncExternalStore } from 'react';
-
 import * as chargerService from '@/lib/chargerService';
+import { queryClient } from '@/lib/queryClient';
 import type { Charger, ChargerStatus, ConnectorType, LatLng } from '@/data/types';
+import { useChargersQuery } from '@/hooks/useChargersQuery';
 
 // ---------------------------------------------------------------------------
-// Module-level state (singleton). The store is intentionally global so that
-// all consumers (map screen, owner dashboard, publish flow) see the same
-// data without prop-drilling a context.
+// Query key constant (must match useChargersQuery.ts)
 // ---------------------------------------------------------------------------
 
-let chargers: Charger[] = [];
-let isLoaded = false;
-let loadPromise: Promise<void> | null = null;
-
-const listeners = new Set<() => void>();
-
-function notify(): void {
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function setChargers(next: Charger[]): void {
-  chargers = next;
-  notify();
-}
-
-/** Stable, monotonic snapshot key. `useSyncExternalStore` reads this. */
-function getSnapshot(): readonly Charger[] {
-  return chargers;
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
+const CHARGER_QUERY_KEY = ['chargers'] as const;
 
 // ---------------------------------------------------------------------------
-// Hydration
-// ---------------------------------------------------------------------------
-
-async function ensureLoaded(): Promise<void> {
-  if (isLoaded) return;
-  if (loadPromise) return loadPromise;
-  loadPromise = (async () => {
-    const next = await chargerService.fetchAllChargers();
-    setChargers(next);
-    isLoaded = true;
-  })();
-  await loadPromise;
-  loadPromise = null;
-}
-
-// ---------------------------------------------------------------------------
-// Public API
+// Public API — imperative (non-React) interface
 // ---------------------------------------------------------------------------
 
 export interface AddChargerInput {
@@ -96,29 +53,33 @@ export interface AddChargerInput {
 
 export const chargerStore = {
   /**
-   * Force-hydrate from Supabase. Safe to call multiple times; subsequent
-   * calls are no-ops. Most code paths should not call this — `useChargers`
-   * triggers hydration implicitly.
+   * Force-hydrate from Supabase. Delegates to TanStack Query's refetch.
+   * Safe to call multiple times; subsequent calls are no-ops if data is
+   * still fresh (within staleTime).
    */
   async load(): Promise<void> {
-    await ensureLoaded();
+    await queryClient.refetchQueries({ queryKey: CHARGER_QUERY_KEY });
   },
 
-  /** All chargers, in insertion order. */
+  /**
+   * All chargers, in insertion order.
+   * Returns from the query cache if available, otherwise fetches fresh.
+   */
   all(): readonly Charger[] {
-    return chargers;
+    return queryClient.getQueryData<Charger[]>(CHARGER_QUERY_KEY) ?? [];
   },
 
   byId(id: string): Charger | null {
-    return chargers.find((c) => c.id === id) ?? null;
+    const all = queryClient.getQueryData<Charger[]>(CHARGER_QUERY_KEY) ?? [];
+    return all.find((c) => c.id === id) ?? null;
   },
 
   byOwner(ownerId: string): Charger[] {
-    return chargers.filter((c) => c.ownerId === ownerId);
+    const all = queryClient.getQueryData<Charger[]>(CHARGER_QUERY_KEY) ?? [];
+    return all.filter((c) => c.ownerId === ownerId);
   },
 
   async add(input: AddChargerInput): Promise<Charger> {
-    await ensureLoaded();
     const created = await chargerService.insertCharger({
       ownerId: input.ownerId,
       title: input.title,
@@ -133,12 +94,12 @@ export const chargerStore = {
       photos: input.photos,
       status: input.status ?? 'available',
     });
-    setChargers([created, ...chargers]);
+    // Invalidate so React components pick up the new charger.
+    void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
     return created;
   },
 
   async update(id: string, patch: Partial<AddChargerInput>): Promise<Charger> {
-    await ensureLoaded();
     const updated = await chargerService.updateCharger(id, {
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.description !== undefined ? { description: patch.description } : {}),
@@ -152,55 +113,37 @@ export const chargerStore = {
       ...(patch.photos !== undefined ? { photos: patch.photos } : {}),
       ...(patch.status !== undefined ? { status: patch.status } : {}),
     });
-    const next = chargers.map((c) => (c.id === id ? updated : c));
-    setChargers(next);
+    void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
     return updated;
   },
 
   async remove(id: string): Promise<void> {
-    await ensureLoaded();
     await chargerService.deleteCharger(id);
-    const next = chargers.filter((c) => c.id !== id);
-    setChargers(next);
+    void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
   },
 
   /**
    * Reset the store to empty (used by tests / debug tooling).
-   * Not wired to any UI in v1.
+   * Clears the query cache for chargers.
    */
   async resetToSeed(): Promise<void> {
-    setChargers([]);
-    isLoaded = true;
+    queryClient.setQueryData<Charger[]>(CHARGER_QUERY_KEY, []);
   },
 };
 
 // ---------------------------------------------------------------------------
-// React hooks
+// React hooks — delegate to TanStack Query
 // ---------------------------------------------------------------------------
 
-/** Subscribe to the full charger list. Hydrates on first mount. */
+/** Subscribe to the full charger list via TanStack Query. */
 export function useChargers(): Charger[] {
-  // `useSyncExternalStore` accepts a subscribe function and a snapshot
-  // getter. We trigger hydration on first subscription by calling
-  // `ensureLoaded()` lazily. The store re-renders subscribers once the
-  // hydration promise resolves, so the component will paint the real data
-  // automatically.
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  // Kick off hydration if it hasn't started yet. We intentionally don't
-  // await — the first render may show an empty list and the real data
-  // lands via the subscription.
-  if (!isLoaded && !loadPromise) {
-    void ensureLoaded();
-  }
-  // Defensive: never return undefined. The snapshot is typed as
-  // `readonly Charger[]` but the typecast erases that, so a caller doing
-  // `arr.length` would crash if anything ever set `chargers` to undefined.
-  return (snapshot ?? []) as Charger[];
+  const { data } = useChargersQuery();
+  return data ?? [];
 }
 
-/** Subscribe to the chargers owned by a specific user. */
+/** Subscribe to chargers owned by a specific user. */
 export function useMyChargers(ownerId: string | null | undefined): Charger[] {
-  const all = useChargers() ?? [];
+  const all = useChargers();
   if (!ownerId) return [];
   return all.filter((c) => c.ownerId === ownerId);
 }

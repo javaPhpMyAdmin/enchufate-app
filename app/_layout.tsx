@@ -16,33 +16,21 @@
  * completed onboarding) the navigator chooses an initial route via
  * `router.replace`.
  */
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Zap } from 'lucide-react-native';
 
+import { queryClient } from '@/lib/queryClient';
 import { AuthProvider, useAuth } from '@/features/auth';
 import { ThemeProvider, useTheme } from '@/theme';
 
 export default function RootLayout(): React.JSX.Element {
-  // Single QueryClient for the lifetime of the app.
-  const queryClient = useMemo(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 1000 * 60, // 1 minute
-            retry: 1,
-          },
-        },
-      }),
-    [],
-  );
 
   return (
     <GestureHandlerRootView style={styles.flex}>

@@ -1,6 +1,8 @@
 /**
  * Map components — public surface.
  */
+export { ChargerLoadingOverlay } from './ChargerLoadingOverlay';
+
 export {
   ChargerMap,
   type ChargerMapHandle,
