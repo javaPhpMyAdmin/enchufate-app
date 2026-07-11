@@ -68,6 +68,8 @@ export interface ChargerDetailSheetHandle {
 export interface ChargerDetailSheetProps {
   /** Fired when the user taps "Contactar". Receives owner id. */
   onContact: (ownerId: string) => void;
+  /** Fired when the user taps "Reseña". Receives owner id + charger id. */
+  onReview?: (ownerId: string, chargerId: string) => void;
 }
 
 const SNAP_POINTS = ['35%', '60%', '92%'];
@@ -75,7 +77,7 @@ const SNAP_POINTS = ['35%', '60%', '92%'];
 export const ChargerDetailSheet = forwardRef<
   ChargerDetailSheetHandle,
   ChargerDetailSheetProps
->(function ChargerDetailSheet({ onContact }, ref) {
+>(function ChargerDetailSheet({ onContact, onReview }, ref) {
   const theme = useTheme();
   const sheetRef = useRef<BottomSheet | null>(null);
 
@@ -155,6 +157,7 @@ export const ChargerDetailSheet = forwardRef<
             charger={charger}
             owner={owner}
             onContact={onContact}
+            onReview={onReview}
             onDirections={handleDirections}
             onClose={() => sheetRef.current?.close()}
           />
@@ -172,6 +175,7 @@ interface DetailContentProps {
   charger: Charger;
   owner: User;
   onContact: (ownerId: string) => void;
+  onReview?: (ownerId: string, chargerId: string) => void;
   onDirections: () => void;
   onClose: () => void;
 }
@@ -180,6 +184,7 @@ function DetailContent({
   charger,
   owner,
   onContact,
+  onReview,
   onDirections,
   onClose,
 }: DetailContentProps): React.JSX.Element {
@@ -313,7 +318,7 @@ function DetailContent({
 
       <Divider style={styles.divider} />
 
-      {/* Actions — Contactar | Cómo llegar */}
+      {/* Actions — Contactar | Reseña | Cómo llegar */}
       <View style={styles.actions}>
         <Pressable
           onPress={() => {
@@ -338,6 +343,31 @@ function DetailContent({
             Contactar
           </Text>
         </Pressable>
+        {onReview ? (
+          <Pressable
+            onPress={() => {
+              onReview(owner.id, charger.id);
+              onClose();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Dejar una reseña"
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionButtonSecondary,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Star color={theme.colors.warning} size={18} />
+            <Text
+              style={[
+                theme.typography.smallBold,
+                { color: theme.colors.text, marginLeft: 8 },
+              ]}
+            >
+              Reseña
+            </Text>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={onDirections}
           accessibilityRole="button"

@@ -120,6 +120,7 @@ function ThemedNavigator(): React.JSX.Element {
         <Stack.Screen name="(public)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="messages" options={{ headerShown: false }} />
+        <Stack.Screen name="reviews" options={{ headerShown: false }} />
         <Stack.Screen
           name="auth/callback"
           options={{ headerShown: false, presentation: 'fullScreenModal' }}

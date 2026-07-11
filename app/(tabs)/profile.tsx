@@ -442,6 +442,12 @@ function ProfileBody({
       <ChargerDetailSheet
         ref={detailSheetRef}
         onContact={(ownerId) => console.log('[profile] contactar', ownerId)}
+        onReview={(ownerId, chargerId) =>
+          router.push({
+            pathname: '/reviews/write',
+            params: { targetUserId: ownerId, chargerId },
+          })
+        }
       />
       <DeleteConfirmModal
         visible={!!pendingDelete}

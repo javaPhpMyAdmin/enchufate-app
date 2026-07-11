@@ -387,6 +387,12 @@ export default function MapScreen(): React.JSX.Element {
       <ChargerDetailSheet
         ref={detailSheetRef}
         onContact={handleContact}
+        onReview={(ownerId, chargerId) =>
+          router.push({
+            pathname: '/reviews/write',
+            params: { targetUserId: ownerId, chargerId },
+          })
+        }
       />
       <FiltersSheet
         ref={filtersSheetRef}

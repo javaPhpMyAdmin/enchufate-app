@@ -40,9 +40,20 @@ export function useCreateReview() {
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: REVIEWS_USER_KEY(variables.targetUserId) });
       void qc.invalidateQueries({ queryKey: REVIEWS_CHARGER_KEY(variables.chargerId) });
+      void qc.invalidateQueries({ queryKey: ['reviews', 'authors', variables.targetUserId] });
       // Also invalidate charger list (rating changes propagate via trigger)
       void qc.invalidateQueries({ queryKey: ['chargers'] });
     },
+  });
+}
+
+/** Fetch reviews for a user with author profile data (via FK join). */
+export function useReviewsWithAuthors(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['reviews', 'authors', userId ?? ''],
+    queryFn: () => reviewService.fetchReviewsWithAuthors(userId!),
+    enabled: !!userId,
+    staleTime: 60_000,
   });
 }
 

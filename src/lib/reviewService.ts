@@ -91,6 +91,39 @@ export async function createReview(review: {
   };
 }
 
+/** Fetch reviews for a user with author profile data (via FK join). */
+export async function fetchReviewsWithAuthors(
+  userId: string,
+): Promise<
+  (Review & { authorName: string; authorAvatar: string | null })[]
+> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*, profiles!reviews_author_id_fkey(display_name, avatar_url)')
+    .eq('target_user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    console.warn('[reviewService] fetchReviewsWithAuthors failed', error?.message);
+    return [];
+  }
+
+  return data.map((row: Record<string, unknown>) => {
+    const profiles = row.profiles as Record<string, unknown> | null;
+    return {
+      id: row.id as string,
+      targetUserId: row.target_user_id as string,
+      authorId: row.author_id as string,
+      chargerId: row.charger_id as string,
+      rating: row.rating as number,
+      comment: (row.comment as string) ?? '',
+      createdAt: row.created_at as string,
+      authorName: (profiles?.display_name as string) ?? 'Conductor',
+      authorAvatar: (profiles?.avatar_url as string) ?? null,
+    };
+  });
+}
+
 /** Delete a review. The trigger will auto-update the user's rating. */
 export async function deleteReview(reviewId: string): Promise<boolean> {
   const { error } = await supabase
