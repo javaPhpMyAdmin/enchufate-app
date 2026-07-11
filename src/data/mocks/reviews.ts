@@ -23,6 +23,7 @@ export const mockReviews: Review[] = [
     id: 'r_01',
     targetUserId: 'u_01',
     authorId: 'u_02',
+    chargerId: 'c_01',
     rating: 5,
     comment:
       'Sofi me abrió la cochera sin problema a las 11 de la noche. Cargador impecable, súper recomendable.',
@@ -32,6 +33,7 @@ export const mockReviews: Review[] = [
     id: 'r_02',
     targetUserId: 'u_01',
     authorId: 'u_05',
+    chargerId: 'c_01',
     rating: 5,
     comment:
       'Todo perfecto. La app me avisó cuando estaba listo y la carga fue rapidísima.',
@@ -43,6 +45,7 @@ export const mockReviews: Review[] = [
     id: 'r_03',
     targetUserId: 'u_02',
     authorId: 'u_03',
+    chargerId: 'c_05',
     rating: 4,
     comment:
       'Buen cargador en Belgrano. La entrada del garage es un poco estrecha para una SUV.',
@@ -52,6 +55,7 @@ export const mockReviews: Review[] = [
     id: 'r_04',
     targetUserId: 'u_02',
     authorId: 'u_07',
+    chargerId: 'c_05',
     rating: 5,
     comment:
       'Tomás super atento. Me mandó instrucciones claras y dejó el cargador listo para usar.',
@@ -63,6 +67,7 @@ export const mockReviews: Review[] = [
     id: 'r_05',
     targetUserId: 'u_03',
     authorId: 'u_04',
+    chargerId: 'c_02',
     rating: 5,
     comment:
       'La carga rápida CCS me salvó el viaje a Mar del Plata. Cami muy amable, 10 puntos.',
@@ -72,6 +77,7 @@ export const mockReviews: Review[] = [
     id: 'r_06',
     targetUserId: 'u_03',
     authorId: 'u_09',
+    chargerId: 'c_02',
     rating: 5,
     comment:
       'El mejor cargador de la zona. Reservé 30 min antes y ya estaba todo listo.',
@@ -83,6 +89,7 @@ export const mockReviews: Review[] = [
     id: 'r_07',
     targetUserId: 'u_04',
     authorId: 'u_06',
+    chargerId: 'c_06',
     rating: 4,
     comment:
       'Barrio tranquilo, ideal para dejar el auto cargando sin preocupaciones. Volveré.',
@@ -92,6 +99,7 @@ export const mockReviews: Review[] = [
     id: 'r_08',
     targetUserId: 'u_04',
     authorId: 'u_10',
+    chargerId: 'c_06',
     rating: 4,
     comment:
       'Joaco estuvo atento por mensaje. La potencia es menor a la anunciada pero carga igual.',
@@ -103,6 +111,7 @@ export const mockReviews: Review[] = [
     id: 'r_09',
     targetUserId: 'u_05',
     authorId: 'u_01',
+    chargerId: 'c_03',
     rating: 5,
     comment:
       'Martina es una genia. Me ayudó con la conexión del cable y hasta me ofreció café.',
@@ -112,6 +121,7 @@ export const mockReviews: Review[] = [
     id: 'r_10',
     targetUserId: 'u_05',
     authorId: 'u_08',
+    chargerId: 'c_03',
     rating: 5,
     comment:
       'Anfitriona de lujo. La cochera está impecable y el cargador funciona perfecto.',
@@ -123,6 +133,7 @@ export const mockReviews: Review[] = [
     id: 'r_11',
     targetUserId: 'u_06',
     authorId: 'u_05',
+    chargerId: 'c_07',
     rating: 4,
     comment:
       'Fede recién empieza pero se nota que tiene buena onda. El precio es muy conveniente.',
@@ -132,6 +143,7 @@ export const mockReviews: Review[] = [
     id: 'r_12',
     targetUserId: 'u_06',
     authorId: 'u_03',
+    chargerId: 'c_07',
     rating: 4,
     comment:
       'Buena experiencia. El cargador anduvo perfecto y Fede respondió rápido mis dudas.',
@@ -143,6 +155,7 @@ export const mockReviews: Review[] = [
     id: 'r_13',
     targetUserId: 'u_07',
     authorId: 'u_02',
+    chargerId: 'c_04',
     rating: 5,
     comment:
       'Lucía súper atenta. La cochera cubierta en Recoleta es un golazo cuando llueve.',
@@ -152,6 +165,7 @@ export const mockReviews: Review[] = [
     id: 'r_14',
     targetUserId: 'u_07',
     authorId: 'u_09',
+    chargerId: 'c_04',
     rating: 5,
     comment:
       'Cinco estrellas. Reservé, llegué y en 5 minutos ya estaba cargando. Muy prolijo todo.',
@@ -163,6 +177,7 @@ export const mockReviews: Review[] = [
     id: 'r_15',
     targetUserId: 'u_08',
     authorId: 'u_10',
+    chargerId: 'c_08',
     rating: 3,
     comment:
       'El cargador está bien pero tuve que coordinar por mensaje y tardó en responder.',
@@ -172,6 +187,7 @@ export const mockReviews: Review[] = [
     id: 'r_16',
     targetUserId: 'u_08',
     authorId: 'u_04',
+    chargerId: 'c_08',
     rating: 4,
     comment:
       'Diego se tomó el tiempo de explicarme cómo funcionaba el cargador. Buen trato.',
@@ -183,6 +199,7 @@ export const mockReviews: Review[] = [
     id: 'r_17',
     targetUserId: 'u_09',
     authorId: 'u_01',
+    chargerId: 'c_09',
     rating: 5,
     comment:
       'Cargar con energía solar fue un golazo. Vale la pena aunque sea un poquito más lejos.',
@@ -192,6 +209,7 @@ export const mockReviews: Review[] = [
     id: 'r_18',
     targetUserId: 'u_09',
     authorId: 'u_07',
+    chargerId: 'c_09',
     rating: 5,
     comment:
       'Vale es super amable. La estación carga rápido y se nota que mantiene todo impecable.',
@@ -203,6 +221,7 @@ export const mockReviews: Review[] = [
     id: 'r_19',
     targetUserId: 'u_10',
     authorId: 'u_08',
+    chargerId: 'c_10',
     rating: 5,
     comment:
       'Nico resolvió todo por la app. Llegué, cargué y me fui. Cinco estrellas.',
@@ -212,6 +231,7 @@ export const mockReviews: Review[] = [
     id: 'r_20',
     targetUserId: 'u_10',
     authorId: 'u_02',
+    chargerId: 'c_10',
     rating: 4,
     comment:
       'Buen cargador en Belgrano R. El precio es justo y Nico siempre responde los mensajes.',

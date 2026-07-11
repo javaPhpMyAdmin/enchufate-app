@@ -53,21 +53,23 @@ export function ChargerCard({
             >
               {owner.name}
             </Text>
-            <View style={styles.ratingRow}>
-              <Star
-                color={theme.colors.warning}
-                fill={theme.colors.warning}
-                size={12}
-              />
-              <Text
-                style={[
-                  theme.typography.caption,
-                  { color: theme.colors.textMuted, marginLeft: 3 },
-                ]}
-              >
-                {formatRating(owner.rating)}
-              </Text>
-            </View>
+            {owner.reviewCount > 0 && (
+              <View style={styles.ratingRow}>
+                <Star
+                  color={theme.colors.warning}
+                  fill={theme.colors.warning}
+                  size={12}
+                />
+                <Text
+                  style={[
+                    theme.typography.caption,
+                    { color: theme.colors.textMuted, marginLeft: 3 },
+                  ]}
+                >
+                  {formatRating(owner.rating)}
+                </Text>
+              </View>
+            )}
           </View>
           <Badge
             status={statusToBadge[charger.status]}

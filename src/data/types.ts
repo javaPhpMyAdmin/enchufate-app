@@ -73,14 +73,16 @@ export interface Charger {
 }
 
 /**
- * Review — a 1-5 star rating plus a Spanish-language comment that one
- * user left about another. `targetUserId` is the user being reviewed
- * (the host); `authorId` is the driver who left the review.
+ * Review — a 1-5 star rating plus a comment that one user left about
+ * another. `targetUserId` is the user being reviewed (the host);
+ * `authorId` is the driver who left the review; `chargerId` ties the
+ * review to a specific charger.
  */
 export interface Review {
   id: string;
   targetUserId: string;
   authorId: string;
+  chargerId: string;
   /** 1..5 */
   rating: number;
   comment: string;

@@ -57,6 +57,7 @@ import {
   formatRating,
   formatReviewCount,
 } from '@/lib/format';
+import { useReviewsForUser } from '@/hooks/useReviewsQuery';
 import { useTheme } from '@/theme';
 
 export interface ChargerDetailSheetHandle {
@@ -183,6 +184,12 @@ function DetailContent({
   onClose,
 }: DetailContentProps): React.JSX.Element {
   const theme = useTheme();
+  const { data: ownerReviews } = useReviewsForUser(owner.id);
+
+  const hasReviews = owner.reviewCount > 0;
+  const displayRating = hasReviews ? formatRating(owner.rating) : null;
+  const displayReviewCount = hasReviews ? formatReviewCount(owner.reviewCount) : null;
+
   return (
     <>
       {/* Header — avatar + owner name + rating + status pill */}
@@ -198,21 +205,32 @@ function DetailContent({
           >
             {owner.name}
           </Text>
-          <View style={styles.ratingRow}>
-            <Star
-              color={theme.colors.warning}
-              fill={theme.colors.warning}
-              size={14}
-            />
+          {displayRating ? (
+            <View style={styles.ratingRow}>
+              <Star
+                color={theme.colors.warning}
+                fill={theme.colors.warning}
+                size={14}
+              />
+              <Text
+                style={[
+                  theme.typography.small,
+                  { color: theme.colors.textMuted, marginLeft: 6 },
+                ]}
+              >
+                {`${displayRating} (${displayReviewCount} reseñas)`}
+              </Text>
+            </View>
+          ) : (
             <Text
               style={[
                 theme.typography.small,
-                { color: theme.colors.textMuted, marginLeft: 6 },
+                { color: theme.colors.textMuted },
               ]}
             >
-              {`${formatRating(owner.rating)} (${formatReviewCount(owner.reviewCount)} reseñas)`}
+              Sin reseñas aún
             </Text>
-          </View>
+          )}
         </View>
         <StatusPill status={charger.status} />
       </View>
