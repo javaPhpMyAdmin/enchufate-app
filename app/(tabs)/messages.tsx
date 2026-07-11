@@ -25,7 +25,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState, Screen } from '@/components/ui';
-import { ConversationListItem } from '@/components/messages';
+import { ConversationListItem, ConversationsListSkeleton } from '@/components/messages';
 import { useAuth } from '@/features/auth';
 import { sortByRecency } from '@/features/messages';
 import {
@@ -81,7 +81,7 @@ function MessagesAuthenticated({
 }): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
-  const conversations = useConversationsForUser(userId);
+  const { conversations, isLoading } = useConversationsForUser(userId);
   const [query, setQuery] = useState<string>('');
 
   const handleOpenConversation = useCallback(
@@ -102,6 +102,21 @@ function MessagesAuthenticated({
   const handleFindChargers = useCallback(() => {
     router.push('/(tabs)/map');
   }, [router]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView edges={['top']} style={styles.flex}>
+          <View style={styles.header}>
+            <Text style={[theme.typography.h1, { color: theme.colors.text }]}>
+              Mensajes
+            </Text>
+          </View>
+          <ConversationsListSkeleton />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>

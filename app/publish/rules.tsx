@@ -86,7 +86,7 @@ export default function Step7Screen(): React.JSX.Element {
           location: parsed.step2.location,
           address: parsed.step2.address,
           neighborhood: deriveNeighborhood(parsed.step2.address),
-          city: 'CABA',
+          city: 'Montevideo',
           pricePerHour: parsed.step5.pricePerHour,
           photos: parsed.step4.photoUrls,
           status: 'available',

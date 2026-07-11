@@ -133,6 +133,35 @@ export async function fetchProfile(supaSession: Session): Promise<User> {
 }
 
 /**
+ * Fetch a profile by user ID and map it to the app's `User` shape.
+ * Used by the map, charger detail sheet, etc. to resolve real owner data.
+ */
+export async function fetchProfileById(userId: string): Promise<User> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error || !data) {
+    console.warn('[profileMapper] fetchProfileById failed', error?.message);
+    return {
+      id: userId,
+      name: 'Anfitrión',
+      surname: '',
+      email: '',
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=00C896&color=fff&size=200&bold=true&format=png`,
+      rating: 0,
+      reviewCount: 0,
+      isOnline: false,
+      isHost: true,
+      joinedAt: new Date().toISOString(),
+    };
+  }
+  return profileToUser(data as ProfileRow, '');
+}
+
+/**
  * Persist a partial update to the `profiles` row for the current user.
  * Translates the app's `User` shape to the `profiles` row shape (camelCase
  * → snake_case). Throws `AuthError` on failure so callers can surface a

@@ -2,22 +2,15 @@
  * `<TypingIndicator />` — three animated dots rendered inside an
  * incoming-bubble-styled container.
  *
- * Uses Reanimated 3 for a smooth scale + opacity loop. The animation
- * is staggered per-dot so the dots bounce in a wave rather than
- * pulsing in unison. Loop is infinite; the parent decides when to
- * mount/unmount.
+ * Uses React Native's built-in `Animated` API for a smooth opacity
+ * loop. The animation is staggered per-dot so the dots pulse in a
+ * wave. Loop is infinite; the parent decides when to mount/unmount.
+ *
+ * NOTE: We switched away from Reanimated 4 to avoid
+ * "Cannot create property 'reduceMotion' on number" errors in Expo Go.
  */
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/theme';
 
@@ -42,11 +35,7 @@ export function TypingIndicator(): React.JSX.Element {
       accessibilityLabel="Escribiendo"
     >
       {Array.from({ length: DOT_COUNT }).map((_, idx) => (
-        <Dot
-          key={idx}
-          color={theme.colors.textMuted}
-          index={idx}
-        />
+        <Dot key={idx} color={theme.colors.textMuted} index={idx} />
       ))}
     </View>
   );
@@ -58,41 +47,38 @@ interface DotProps {
 }
 
 function Dot({ color, index }: DotProps): React.JSX.Element {
-  const progress = useSharedValue<number>(0);
+  const opacity = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
-    progress.value = withRepeat(
-      withSequence(
-        withTiming(1, {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
           duration: ANIM_DURATION_MS,
-          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
         }),
-        withTiming(0, {
+        Animated.timing(opacity, {
+          toValue: 0.35,
           duration: ANIM_DURATION_MS,
-          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
         }),
-      ),
-      -1,
-      false,
+      ]),
     );
-  }, [progress]);
 
-  // Stagger each dot so they bounce in a wave rather than in unison.
-  useEffect(() => {
-    progress.value = withDelay(index * STAGGER_MS, progress.value);
-  }, [index, progress]);
+    // Stagger: delay each dot by `index * STAGGER_MS`.
+    const timeout = setTimeout(() => anim.start(), index * STAGGER_MS);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: 0.35 + 0.65 * progress.value,
-    transform: [{ scale: 0.85 + 0.35 * progress.value }],
-  }));
+    return () => {
+      clearTimeout(timeout);
+      anim.stop();
+    };
+  }, [opacity, index]);
 
   return (
     <Animated.View
       style={[
         styles.dot,
-        { backgroundColor: color },
-        animatedStyle,
+        { backgroundColor: color, opacity },
       ]}
     />
   );

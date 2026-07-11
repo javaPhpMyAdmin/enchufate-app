@@ -30,7 +30,7 @@ export default function Step4Screen(): React.JSX.Element {
       setShowError(true);
       return;
     }
-    router.push('/publish/pricing');
+    router.replace('/publish/pricing');
   };
 
   const valid = isStepValid(4);

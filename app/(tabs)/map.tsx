@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -29,14 +30,26 @@ import {
   type MapViewMode,
 } from '@/components/map';
 import { useAuth } from '@/features/auth';
+import { fetchProfileById } from '@/features/auth/profileMapper';
 import { useChargers, chargerStore } from '@/data/chargerStore';
-import { messageStore } from '@/data/messageStore';
 import { mockUsers } from '@/data/mocks/users';
 import { DEFAULT_FILTERS, type Charger, type ChargerFilters, type LatLng, type User } from '@/data/types';
 import { applyFilters } from '@/domain/charger';
 import { getUserById } from '@/domain/user';
 import { haversineKm } from '@/lib/distance';
 import { useTheme } from '@/theme';
+
+// ---------------------------------------------------------------------------
+// Profile cache — avoids re-fetching the same owner from Supabase.
+// ---------------------------------------------------------------------------
+const profileCache = new Map<string, User>();
+async function resolveOwner(ownerId: string): Promise<User> {
+  const cached = profileCache.get(ownerId);
+  if (cached) return cached;
+  const user = await fetchProfileById(ownerId);
+  profileCache.set(ownerId, user);
+  return user;
+}
 
 export default function MapScreen(): React.JSX.Element {
   const theme = useTheme();
@@ -122,9 +135,21 @@ export default function MapScreen(): React.JSX.Element {
       null;
   }, [selectedId, visibleChargers, allChargers]);
 
-  const selectedOwner = useMemo<User | null>(() => {
-    if (!selectedCharger) return null;
-    return getUserById(mockUsers, selectedCharger.ownerId) ?? null;
+  const [selectedOwner, setSelectedOwner] = useState<User | null>(null);
+
+  // Resolve the real owner from Supabase when a charger is selected.
+  useEffect(() => {
+    if (!selectedCharger) {
+      setSelectedOwner(null);
+      return;
+    }
+    let cancelled = false;
+    void resolveOwner(selectedCharger.ownerId).then((u) => {
+      if (!cancelled) setSelectedOwner(u);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCharger]);
 
   // Whenever a charger is selected (from the map marker OR from the list
@@ -136,17 +161,28 @@ export default function MapScreen(): React.JSX.Element {
     }
   }, [selectedCharger, selectedOwner]);
 
-  const handleSelectCharger = useCallback((id: string) => {
-    setSelectedId(id);
-  }, []);
+  const handleSelectCharger = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      // Open the sheet directly — resolve the real owner from Supabase.
+      const c = chargerStore.byId(id);
+      if (c) {
+        void resolveOwner(c.ownerId).then((o) => {
+          detailSheetRef.current?.show(c, o);
+        });
+      }
+    },
+    [],
+  );
 
   const handleOpenDetail = useCallback(
     (id: string) => {
       setSelectedId(id);
       const c = chargerStore.byId(id);
-      const o = c ? getUserById(mockUsers, c.ownerId) : undefined;
-      if (c && o) {
-        detailSheetRef.current?.show(c, o);
+      if (c) {
+        void resolveOwner(c.ownerId).then((o) => {
+          detailSheetRef.current?.show(c, o);
+        });
       }
     },
     [],
@@ -173,17 +209,28 @@ export default function MapScreen(): React.JSX.Element {
     setFilters(DEFAULT_FILTERS);
   }, []);
 
-  // Phase 5 (T-20): "Contactar" in the bottom sheet finds-or-creates
-  // a conversation between the current user and the owner, then
-  // navigates to the chat screen. The sheet is already closing
-  // itself via the `onClose` in `ChargerDetailSheet`.
+  // Phase 5 (T-20): "Contactar" in the bottom sheet navigates to the
+  // chat screen with the owner's id. The conversation is NOT created yet —
+  // it will only be created when the user actually sends a message.
   const handleContact = useCallback(
-    async (ownerId: string) => {
+    (ownerId: string) => {
       const me = session?.user;
-      if (!me) return;
+      if (!me) {
+        Alert.alert(
+          'Iniciá sesión',
+          'Necesitás iniciar sesión para contactar al anfitrión.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Iniciar sesión',
+              onPress: () => router.push('/(public)/login'),
+            },
+          ],
+        );
+        return;
+      }
       if (me.id === ownerId) return; // can't message yourself
-      const conv = await messageStore.findOrCreateConversation([me.id, ownerId]);
-      router.push(`/messages/${conv.id}`);
+      router.push({ pathname: '/messages/chat', params: { ownerId } });
     },
     [session?.user, router],
   );
@@ -199,9 +246,32 @@ export default function MapScreen(): React.JSX.Element {
     [router],
   );
 
+  // Pre-fetch real owner profiles for visible chargers.
+  const [ownerProfiles, setOwnerProfiles] = useState<Record<string, User>>({});
+  useEffect(() => {
+    const ownerIds = visibleChargers.map((c) => c.ownerId);
+    const uniqueIds = [...new Set(ownerIds)].filter((id) => !profileCache.get(id));
+    if (uniqueIds.length === 0) return;
+    let cancelled = false;
+    Promise.all(uniqueIds.map((id) => resolveOwner(id))).then((users) => {
+      if (cancelled) return;
+      setOwnerProfiles((prev) => {
+        const next = { ...prev };
+        for (const u of users) next[u.id] = u;
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleChargers]);
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Charger>) => {
-      const owner = userById[item.ownerId] ?? genericOwnerStub(item.ownerId);
+      const owner =
+        ownerProfiles[item.ownerId] ??
+        profileCache.get(item.ownerId) ??
+        genericOwnerStub(item.ownerId);
       const distance =
         userLocation != null
           ? haversineKm(userLocation, item.location)
@@ -217,7 +287,7 @@ export default function MapScreen(): React.JSX.Element {
         </View>
       );
     },
-    [userById, userLocation, handleOpenDetail],
+    [ownerProfiles, userLocation, handleOpenDetail],
   );
 
   return (

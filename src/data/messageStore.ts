@@ -25,7 +25,7 @@
  * loop. Phase 9 can add a `supabase.channel('messages')` subscription
  * without changing the public API.
  */
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
 import type { Conversation, Message } from '@/data/types';
@@ -90,6 +90,73 @@ export interface NewMessageInput {
   body: string;
   /** ISO 8601 timestamp; defaults to "now". */
   createdAt?: string;
+}
+
+/**
+ * Create a new conversation and its first message in one call.
+ * Used by the "Contactar" flow: the conversation only exists after
+ * the user actually sends a message, not when they tap the button.
+ *
+ * Returns the newly created conversation (with the first message
+ * already persisted).
+ */
+async function createConversationWithFirstMessage(
+  participantIds: string[],
+  authorId: string,
+  body: string,
+): Promise<{ conversation: Conversation; message: Message }> {
+  if (participantIds.length < 2) {
+    throw new Error('A conversation needs at least 2 participants');
+  }
+  if (!body.trim()) {
+    throw new Error('createConversationWithFirstMessage: empty body');
+  }
+
+  const sorted = [...participantIds].sort();
+  const now = new Date().toISOString();
+  const preview =
+    body.length > 80 ? `${body.slice(0, 77)}…` : body;
+
+  // 1. Create the conversation.
+  const { data: convRow, error: convError } = await supabase
+    .from('conversations')
+    .insert({
+      participant_ids: sorted,
+      last_message_preview: preview,
+      last_message_at: now,
+      unread_count_by_user: Object.fromEntries(
+        sorted.map((id) => [id, id === authorId ? 0 : 1]),
+      ),
+    })
+    .select()
+    .single();
+  if (convError || !convRow) {
+    throw new Error(
+      `createConversationWithFirstMessage: conv insert failed: ${convError?.message ?? 'no data'}`,
+    );
+  }
+  const conversation = rowToConversation(convRow as ConversationRow);
+
+  // 2. Insert the first message.
+  const { data: msgRow, error: msgError } = await supabase
+    .from('messages')
+    .insert({
+      conversation_id: conversation.id,
+      author_id: authorId,
+      body,
+      read_by: [authorId],
+      created_at: now,
+    })
+    .select()
+    .single();
+  if (msgError || !msgRow) {
+    throw new Error(
+      `createConversationWithFirstMessage: msg insert failed: ${msgError?.message ?? 'no data'}`,
+    );
+  }
+  const message = rowToMessage(msgRow as MessageRow);
+
+  return { conversation, message };
 }
 
 /**
@@ -290,6 +357,7 @@ async function messagesByConversation(
 
 export const messageStore = {
   findOrCreateConversation,
+  createConversationWithFirstMessage,
   addMessage,
   markAsRead,
   byId,
@@ -308,104 +376,85 @@ export const messageStore = {
 /** Conversations the user participates in, sorted newest first. */
 export function useConversationsForUser(
   userId: string | null | undefined,
-): Conversation[] {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-
-  useEffect(() => {
-    if (!userId) {
-      setConversations([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
+): { conversations: Conversation[]; isLoading: boolean } {
+  const { data, isLoading } = useQuery({
+    queryKey: ['conversations', userId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
-        .contains('participant_ids', [userId])
+        .contains('participant_ids', [userId!])
         .order('last_message_at', { ascending: false });
-      if (cancelled) return;
-      if (error) {
-        console.warn('[messageStore] useConversationsForUser', error.message);
-        return;
-      }
-      setConversations((data as ConversationRow[]).map(rowToConversation));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  return conversations;
+      if (error) throw new Error(error.message);
+      return (data as ConversationRow[]).map(rowToConversation);
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60,
+  });
+  return { conversations: data ?? [], isLoading };
 }
 
 /** Messages in a single conversation, sorted oldest first. */
 export function useMessagesByConversation(
   conversationId: string | null | undefined,
-): Message[] {
-  const [messages, setMessages] = useState<Message[]>([]);
-
-  useEffect(() => {
-    if (!conversationId) {
-      setMessages([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
+): { messages: Message[]; isLoading: boolean } {
+  const { data, isLoading } = useQuery({
+    queryKey: ['messages', conversationId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .eq('conversation_id', conversationId)
+        .eq('conversation_id', conversationId!)
         .order('created_at', { ascending: true });
-      if (cancelled) return;
-      if (error) {
-        console.warn('[messageStore] useMessagesByConversation', error.message);
-        return;
-      }
-      setMessages((data as MessageRow[]).map(rowToMessage));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [conversationId]);
-
-  return messages;
+      if (error) throw new Error(error.message);
+      return (data as MessageRow[]).map(rowToMessage);
+    },
+    enabled: !!conversationId,
+    staleTime: 1000 * 60,
+  });
+  return { messages: data ?? [], isLoading };
 }
 
 /** Total unread messages for a user across all their conversations. */
 export function useUnreadCountForUser(
   userId: string | null | undefined,
-): number {
-  const [count, setCount] = useState<number>(0);
-
-  useEffect(() => {
-    if (!userId) {
-      setCount(0);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
+): { count: number; isLoading: boolean } {
+  const { data, isLoading } = useQuery({
+    queryKey: ['unread', userId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('conversations')
         .select('unread_count_by_user')
-        .contains('participant_ids', [userId]);
-      if (cancelled) return;
-      if (error) {
-        console.warn('[messageStore] useUnreadCountForUser', error.message);
-        return;
-      }
+        .contains('participant_ids', [userId!]);
+      if (error) throw new Error(error.message);
       let total = 0;
       for (const c of (data ?? []) as Pick<
         ConversationRow,
         'unread_count_by_user'
       >[]) {
-        total += c.unread_count_by_user?.[userId] ?? 0;
+        total += c.unread_count_by_user?.[userId!] ?? 0;
       }
-      setCount(total);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
+      return total;
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60,
+  });
+  return { count: data ?? 0, isLoading };
+}
 
-  return count;
+// ---------------------------------------------------------------------------
+// TanStack Query hooks
+// ---------------------------------------------------------------------------
+
+/** Fetch a single conversation by ID. Returns null while loading or if not found. */
+export function useConversationById(
+  conversationId: string | null | undefined,
+): { conversation: Conversation | null; isLoading: boolean } {
+  const { data, isLoading } = useQuery({
+    queryKey: ['conversation', conversationId],
+    queryFn: () => messageStore.byId(conversationId!),
+    enabled: !!conversationId,
+    staleTime: 1000 * 60,
+  });
+  return { conversation: data ?? null, isLoading };
 }

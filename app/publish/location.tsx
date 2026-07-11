@@ -1,10 +1,9 @@
 /**
  * Step 2 — Ubicación.
  *
- * On mount we ask for the foreground location permission and seed the
- * map at the user's coordinates. The user can then drag the pin to
- * refine the spot, and type a free-form address in the text field. The
- * pin is the source of truth; the address is for display.
+ * Uses GPS + reverse geocoding to auto-fill the address. The user can
+ * edit the address text. GPS coordinates are the source of truth for
+ * the map marker; the address text is for display and search.
  */
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -12,19 +11,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Crosshair } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 import * as Location from 'expo-location';
-import MapView, {
-  Marker,
-  PROVIDER_DEFAULT,
-  PROVIDER_GOOGLE,
-  type Region,
-} from 'react-native-maps';
 
 import { TextField } from '@/components/ui';
 import { PublishGateBanner, WizardFooter } from '@/components/publish';
@@ -32,18 +24,10 @@ import { usePublishDraft } from '@/features/publish';
 import type { LatLng } from '@/data/types';
 import { useTheme } from '@/theme';
 
-const DEFAULT_REGION: Region = {
-  latitude: -34.6037,
-  longitude: -58.3816,
-  latitudeDelta: 0.04,
-  longitudeDelta: 0.04,
-};
-
 export default function Step2Screen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
   const { draft, update, isStepValid } = usePublishDraft();
-  const mapRef = React.useRef<MapView | null>(null);
   const [location, setLocation] = useState<LatLng | null>(
     draft.step2?.location ?? null,
   );
@@ -55,38 +39,61 @@ export default function Step2Screen(): React.JSX.Element {
     update(2, { location: location ?? undefined, address });
   }, [location, address, update]);
 
-  const handleUseMyLocation = async (): Promise<void> => {
-    setLocating(true);
-    setError(null);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setError('Necesitamos tu ubicación para centrar el mapa.');
-        return;
+  // Auto-detect GPS location + reverse geocode on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLocating(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) {
+          setError('Dale permisos de ubicación para auto-completar la dirección.');
+          setLocating(false);
+          return;
+        }
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (cancelled) return;
+
+        const coords: LatLng = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        setLocation(coords);
+
+        // Reverse geocode to get a human-readable address.
+        const [geo] = await Location.reverseGeocodeAsync(coords);
+        if (cancelled) return;
+
+        if (geo) {
+          const parts = [
+            geo.street,
+            geo.streetNumber,
+            geo.district,
+            geo.city,
+            geo.region,
+          ].filter(Boolean);
+          const addr = parts.join(', ');
+          if (addr.length > 0) {
+            setAddress(addr);
+          }
+        }
+      } catch (err) {
+        console.warn('[publish-step2] GPS error', err);
+        setError('No pudimos obtener tu ubicación. Ingresá la dirección manualmente.');
+      } finally {
+        if (!cancelled) setLocating(false);
       }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const coords: LatLng = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      };
-      setLocation(coords);
-      mapRef.current?.animateCamera(
-        { center: coords, zoom: 15 },
-        { duration: 400 },
-      );
-    } catch (err) {
-      console.warn('[publish-step2] location error', err);
-      setError('No pudimos obtener tu ubicación. Tirá el pin manualmente.');
-    } finally {
-      setLocating(false);
-    }
-  };
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleNext = (): void => {
     if (!location) {
-      setError('Tocá "Usar mi ubicación" o arrastrá el pin en el mapa.');
+      setError('Esperá a que se detecte tu ubicación o ingresá una dirección.');
       return;
     }
     if (address.trim().length < 3) {
@@ -94,7 +101,7 @@ export default function Step2Screen(): React.JSX.Element {
       return;
     }
     setError(null);
-    router.push('/publish/specs');
+    router.replace('/publish/specs');
   };
 
   const valid = isStepValid(2);
@@ -122,70 +129,77 @@ export default function Step2Screen(): React.JSX.Element {
               { color: theme.colors.textMuted, marginTop: 6 },
             ]}
           >
-            Centrá el mapa y ajustá el pin en la ubicación exacta.
+            Detectamos tu ubicación automáticamente. Si es necesario, editá
+            la dirección.
           </Text>
         </View>
 
+        {/* Location status card */}
         <View
           style={[
-            styles.mapWrap,
+            styles.statusCard,
             {
+              backgroundColor: theme.colors.surfaceAlt,
               borderColor: theme.colors.border,
               borderRadius: theme.radii.md,
-              backgroundColor: theme.colors.surfaceAlt,
+              padding: theme.spacing.md,
             },
           ]}
         >
-          <MapView
-            ref={mapRef}
-            provider={
-              Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT
-            }
-            style={styles.map}
-            initialRegion={DEFAULT_REGION}
-            onPress={(e) => setLocation(e.nativeEvent.coordinate)}
-            showsUserLocation
-            toolbarEnabled={false}
-            loadingEnabled
-          >
-            {location ? (
-              <Marker
-                coordinate={location}
-                draggable
-                onDragEnd={(e) => setLocation(e.nativeEvent.coordinate)}
-              />
-            ) : null}
-          </MapView>
-          <Pressable
-            onPress={() => void handleUseMyLocation()}
-            accessibilityRole="button"
-            accessibilityLabel="Usar mi ubicación"
-            style={({ pressed }) => [
-              styles.locateButton,
-              {
-                backgroundColor: theme.colors.background,
-                borderRadius: theme.radii.full,
-                opacity: pressed ? 0.8 : 1,
-              },
-              theme.shadows.md,
-            ]}
-          >
-            {locating ? (
+          {locating ? (
+            <View style={styles.statusRow}>
               <ActivityIndicator color={theme.colors.primary} size="small" />
-            ) : (
-              <Crosshair color={theme.colors.primary} size={18} />
-            )}
-          </Pressable>
+              <Text
+                style={[
+                  theme.typography.body,
+                  { color: theme.colors.textMuted, marginLeft: 10 },
+                ]}
+              >
+                Detectando ubicación...
+              </Text>
+            </View>
+          ) : location ? (
+            <View style={styles.statusRow}>
+              <MapPin color={theme.colors.primary} size={20} />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text
+                  style={[theme.typography.smallBold, { color: theme.colors.text }]}
+                >
+                  Ubicación detectada
+                </Text>
+                <Text
+                  style={[
+                    theme.typography.caption,
+                    { color: theme.colors.textMuted, marginTop: 2 },
+                  ]}
+                >
+                  {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.statusRow}>
+              <MapPin color={theme.colors.textMuted} size={20} />
+              <Text
+                style={[
+                  theme.typography.body,
+                  { color: theme.colors.textMuted, marginLeft: 10 },
+                ]}
+              >
+                Sin ubicación aún
+              </Text>
+            </View>
+          )}
         </View>
 
         <TextField
-          label="Dirección o referencia"
+          label="Dirección"
           value={address}
           onChangeText={setAddress}
-          placeholder="Ej: Malabia 1450, Palermo"
+          placeholder="Ej: Av. 18 de Julio 1234, Montevideo"
           maxLength={140}
           error={error ?? undefined}
-          helper="El pin queda como la ubicación exacta; el texto ayuda a los conductores."
+          helper="La dirección se usa para que los conductores te encuentren."
           autoCapitalize="words"
         />
       </View>
@@ -205,6 +219,7 @@ export default function Step2Screen(): React.JSX.Element {
           onBack={() => router.back()}
           onNext={handleNext}
           isSubmitting={false}
+          nextLabel="Siguiente"
         />
       </View>
     </KeyboardAvoidingView>
@@ -216,22 +231,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  mapWrap: {
-    height: 240,
-    overflow: 'hidden',
+  statusCard: {
     borderWidth: 1,
   },
-  map: {
-    flex: 1,
-  },
-  locateButton: {
-    position: 'absolute',
-    right: 12,
-    bottom: 12,
-    width: 40,
-    height: 40,
+  statusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   footerBar: {
     borderTopWidth: StyleSheet.hairlineWidth,

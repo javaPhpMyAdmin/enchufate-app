@@ -55,7 +55,7 @@ export default function Step5Screen(): React.JSX.Element {
       setShowErrors(true);
       return;
     }
-    router.push('/publish/availability');
+    router.replace('/publish/availability');
   };
 
   const valid = isStepValid(5);

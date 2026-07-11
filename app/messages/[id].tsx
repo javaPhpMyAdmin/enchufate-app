@@ -6,9 +6,7 @@
  *      participant + online dot
  *   2. `<FlatList />` of `<MessageBubble />`s (auto-scroll to bottom
  *      on new messages)
- *   3. `<TypingIndicator />` — shown above the input when the other
- *      user "is typing" (simulated)
- *   4. `<ChatInput />` — text field + send button
+ *   3. `<ChatInput />` — text field + send button
  *
  * Mark-as-read: every time the message list changes (new message,
  * initial load), we call `messageStore.markAsRead(conversationId, me.id)`
@@ -29,16 +27,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  View,
   type ListRenderItemInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   ChatHeader,
   ChatInput,
+  ChatSkeleton,
   MessageBubble,
-  TypingIndicator,
 } from '@/components/messages';
 import { EmptyState } from '@/components/ui';
 import { useAuth } from '@/features/auth';
@@ -46,11 +44,10 @@ import {
   getOtherParticipant,
   getReadReceipt,
   shouldShowTimestamp,
-  useSimulatedTyping,
 } from '@/features/messages';
-import { messageStore, useMessagesByConversation } from '@/data/messageStore';
+import { messageStore, useConversationById, useMessagesByConversation } from '@/data/messageStore';
 import { mockUsers } from '@/data/mocks/users';
-import type { Conversation, Message, User } from '@/data/types';
+import type { Message, User } from '@/data/types';
 import { getUserById } from '@/domain/user';
 import { useTheme } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
@@ -58,6 +55,7 @@ import { MessageCircle } from 'lucide-react-native';
 export default function ChatScreen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const rawId = params.id;
   const conversationId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -65,27 +63,10 @@ export default function ChatScreen(): React.JSX.Element {
   const { session } = useAuth();
   const me = session?.user;
 
-  // Fetch the conversation from Supabase. The previous mock store
-  // returned it synchronously; the Supabase-backed `byId` is async, so
-  // we use local state + a `cancelled` flag to avoid races.
-  const [conversation, setConversation] = useState<Conversation | null>(null);
-  useEffect(() => {
-    if (!conversationId) {
-      setConversation(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const c = await messageStore.byId(conversationId);
-      if (cancelled) return;
-      setConversation(c);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [conversationId]);
+  // Fetch the conversation via TanStack Query.
+  const { conversation, isLoading } = useConversationById(conversationId);
 
-  const messages = useMessagesByConversation(conversation?.id ?? null);
+  const { messages } = useMessagesByConversation(conversation?.id ?? null);
 
   // Identify the other participant. We look in the mock users first
   // (most of the time the other is a known host); if not found we
@@ -105,7 +86,6 @@ export default function ChatScreen(): React.JSX.Element {
 
   // Composer state — the chat input is fully controlled.
   const [draft, setDraft] = useState<string>('');
-  const { isTyping, startTyping } = useSimulatedTyping();
 
   // Auto-mark-as-read whenever the message list changes. The ref
   // prevents the effect from re-firing for the same conversation in
@@ -144,12 +124,13 @@ export default function ChatScreen(): React.JSX.Element {
       authorId: me.id,
       body,
     });
+    // Invalidate conversations list to update lastMessagePreview.
+    void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });
     setDraft('');
     // Re-enable auto-scroll in case the user scrolled up earlier
     // and is now back to the bottom sending a new message.
     setAutoScroll(true);
-    startTyping();
-  }, [conversation, me, draft, startTyping]);
+  }, [conversation, me, draft, queryClient]);
 
   const handleBack = useCallback((): void => {
     if (router.canGoBack()) {
@@ -174,7 +155,37 @@ export default function ChatScreen(): React.JSX.Element {
     [],
   );
 
+  const renderItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<Message>) => {
+      const isOutgoing = item.authorId === me?.id;
+      const showMeta = shouldShowTimestamp(messages, index);
+      const receipt = isOutgoing && conversation
+        ? getReadReceipt(item, conversation, me.id)
+        : null;
+      return (
+        <MessageBubble
+          message={item}
+          isOutgoing={isOutgoing}
+          showMeta={showMeta}
+          readReceipt={receipt ?? undefined}
+        />
+      );
+    },
+    [me?.id, conversation, messages],
+  );
+
   // Hard guards: missing conversation or auth → minimal placeholder.
+  // These MUST come AFTER all hooks to avoid "hooks order" violations.
+  if (isLoading && !conversation) {
+    return (
+      <SafeAreaView
+        style={[styles.flex, { backgroundColor: theme.colors.background }]}
+        edges={['top', 'bottom']}
+      >
+        <ChatSkeleton />
+      </SafeAreaView>
+    );
+  }
   if (!conversationId) {
     return (
       <SafeAreaView
@@ -212,25 +223,6 @@ export default function ChatScreen(): React.JSX.Element {
     );
   }
 
-  const renderItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<Message>) => {
-      const isOutgoing = item.authorId === me.id;
-      const showMeta = shouldShowTimestamp(messages, index);
-      const receipt = isOutgoing
-        ? getReadReceipt(item, conversation, me.id)
-        : null;
-      return (
-        <MessageBubble
-          message={item}
-          isOutgoing={isOutgoing}
-          showMeta={showMeta}
-          readReceipt={receipt ?? undefined}
-        />
-      );
-    },
-    [me.id, conversation, messages],
-  );
-
   return (
     <SafeAreaView
       style={[styles.flex, { backgroundColor: theme.colors.background }]}
@@ -252,11 +244,6 @@ export default function ChatScreen(): React.JSX.Element {
           scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
         />
-        {isTyping ? (
-          <View style={styles.typingWrap}>
-            <TypingIndicator />
-          </View>
-        ) : null}
         <ChatInput
           value={draft}
           onChangeText={setDraft}
@@ -295,9 +282,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 2,
-  },
-  typingWrap: {
-    paddingHorizontal: 12,
-    paddingBottom: 4,
   },
 });

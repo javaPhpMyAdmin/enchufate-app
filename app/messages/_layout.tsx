@@ -25,6 +25,7 @@ export default function MessagesLayout(): React.JSX.Element {
       }}
     >
       <Stack.Screen name="[id]" />
+      <Stack.Screen name="chat" />
     </Stack>
   );
 }

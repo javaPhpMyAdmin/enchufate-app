@@ -53,7 +53,7 @@ export default function Step1Screen(): React.JSX.Element {
       setShowErrors(true);
       return;
     }
-    router.push('/publish/location');
+    router.replace('/publish/location');
   };
 
   const titleError = showErrors ? getTitleError(title) : undefined;

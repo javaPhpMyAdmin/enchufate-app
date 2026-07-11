@@ -11,5 +11,6 @@ export {
   type ConversationListItemProps,
 } from './ConversationListItem';
 export { MessageBubble, type MessageBubbleProps } from './MessageBubble';
+export { ChatSkeleton } from './ChatSkeleton';
+export { ConversationsListSkeleton } from './ConversationsListSkeleton';
 export { ReadReceipt, type ReadReceiptProps } from './ReadReceipt';
-export { TypingIndicator } from './TypingIndicator';

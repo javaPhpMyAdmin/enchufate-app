@@ -66,7 +66,7 @@ export default function Step3Screen(): React.JSX.Element {
       setShowErrors(true);
       return;
     }
-    router.push('/publish/photos');
+    router.replace('/publish/photos');
   };
 
   const parsedPower = Number.parseFloat(power);

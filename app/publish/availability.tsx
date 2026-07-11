@@ -30,7 +30,7 @@ export default function Step6Screen(): React.JSX.Element {
   }, [schedule, update]);
 
   const handleNext = (): void => {
-    router.push('/publish/rules');
+    router.replace('/publish/rules');
   };
 
   const valid = isStepValid(6);
