@@ -62,6 +62,10 @@ export interface Charger {
   status: ChargerStatus;
   /** Minutes until the charger is free. Only set for reserved/busy chargers. */
   availableInMinutes?: number;
+  /** ISO 8601 timestamp when the charger was set to busy. */
+  busySince?: string;
+  /** Estimated duration in minutes chosen by the host. */
+  estimatedDurationMinutes?: number;
   location: LatLng;
   address: string;
   neighborhood: string;

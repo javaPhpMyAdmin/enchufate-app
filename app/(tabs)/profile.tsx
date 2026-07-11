@@ -254,6 +254,27 @@ function ProfileBody({
     if (c) setPendingDelete(c);
   }, []);
 
+  const handleToggleBusy = useCallback(
+    async (id: string, durationMinutes: number) => {
+      try {
+        await chargerStore.toggleBusy(id, durationMinutes);
+      } catch (err) {
+        console.warn('[profile] toggleBusy failed', err);
+        Alert.alert('Error', 'No pudimos cambiar el estado del cargador.');
+      }
+    },
+    [],
+  );
+
+  const handleSetAvailable = useCallback(async (id: string) => {
+    try {
+      await chargerStore.setAvailable(id);
+    } catch (err) {
+      console.warn('[profile] setAvailable failed', err);
+      Alert.alert('Error', 'No pudimos cambiar el estado del cargador.');
+    }
+  }, []);
+
   const handleConfirmDelete = useCallback(async (): Promise<void> => {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -280,10 +301,18 @@ function ProfileBody({
           onPress={handleOpenDetail}
           onEdit={handleEditCharger}
           onDelete={handleDeletePrompt}
+          onToggleBusy={handleToggleBusy}
+          onSetAvailable={handleSetAvailable}
         />
       </View>
     ),
-    [handleOpenDetail, handleEditCharger, handleDeletePrompt],
+    [
+      handleOpenDetail,
+      handleEditCharger,
+      handleDeletePrompt,
+      handleToggleBusy,
+      handleSetAvailable,
+    ],
   );
 
   if (!session) return <View />;

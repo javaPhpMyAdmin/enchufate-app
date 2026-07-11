@@ -11,6 +11,11 @@ export {
 } from './ChargerDetailSheet';
 
 export {
+  DurationPickerSheet,
+  type DurationPickerSheetHandle,
+} from '../DurationPickerSheet';
+
+export {
   FiltersSheet,
   type FiltersSheetHandle,
   type FiltersSheetProps,

@@ -9,7 +9,7 @@
  * Tapping the card body still triggers `onPress`, which the dashboard
  * uses to show the same detail sheet as the map.
  */
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Image,
   Modal as RNModal,
@@ -21,14 +21,20 @@ import {
 import {
   Edit3,
   MoreVertical,
+  Timer,
+  ToggleLeft,
   Trash2,
   Zap,
 } from 'lucide-react-native';
 
 import { Card } from '@/components/ui';
+import {
+  DurationPickerSheet,
+  type DurationPickerSheetHandle,
+} from '@/components/sheets';
 import type { Charger } from '@/data/types';
 import { CONNECTOR_LABELS } from '@/data/types';
-import { formatPower, formatPrice } from '@/lib/format';
+import { formatCountdown, formatPower, formatPrice } from '@/lib/format';
 import { useTheme } from '@/theme';
 
 import { ChargerStatusBadge } from './ChargerStatusBadge';
@@ -38,6 +44,10 @@ export interface OwnerChargerCardProps {
   onPress: (chargerId: string) => void;
   onEdit: (chargerId: string) => void;
   onDelete: (chargerId: string) => void;
+  /** Called when host toggles to busy with chosen duration (minutes). */
+  onToggleBusy?: (chargerId: string, durationMinutes: number) => void;
+  /** Called when host toggles back to available. */
+  onSetAvailable?: (chargerId: string) => void;
 }
 
 export function OwnerChargerCard({
@@ -45,11 +55,34 @@ export function OwnerChargerCard({
   onPress,
   onEdit,
   onDelete,
+  onToggleBusy,
+  onSetAvailable,
 }: OwnerChargerCardProps): React.JSX.Element {
   const theme = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const durationPickerRef = useRef<DurationPickerSheetHandle | null>(null);
 
   const photo = charger.photos?.[0];
+  const isBusy = charger.status === 'busy' && !charger.availableInMinutes;
+  const isAvailable = charger.status === 'available';
+
+  const handleToggleBusy = useCallback(() => {
+    setMenuOpen(false);
+    // Small delay to let the action sheet close first.
+    setTimeout(() => durationPickerRef.current?.open(), 200);
+  }, []);
+
+  const handleDurationConfirm = useCallback(
+    (minutes: number) => {
+      onToggleBusy?.(charger.id, minutes);
+    },
+    [charger.id, onToggleBusy],
+  );
+
+  const handleSetAvailable = useCallback(() => {
+    setMenuOpen(false);
+    onSetAvailable?.(charger.id);
+  }, [charger.id, onSetAvailable]);
 
   return (
     <Pressable
@@ -140,6 +173,19 @@ export function OwnerChargerCard({
               </Text>
               <ChargerStatusBadge status={charger.status} />
             </View>
+            {charger.status === 'busy' && charger.availableInMinutes != null && charger.availableInMinutes > 0 ? (
+              <View style={styles.countdownRow}>
+                <Timer color={theme.colors.warning} size={12} />
+                <Text
+                  style={[
+                    theme.typography.small,
+                    { color: theme.colors.warning, marginLeft: 4 },
+                  ]}
+                >
+                  {`Libre en ${formatCountdown(charger.availableInMinutes)}`}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </Card>
@@ -148,6 +194,16 @@ export function OwnerChargerCard({
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         actions={[
+          {
+            key: 'toggle-status',
+            label: isAvailable ? 'Marcar ocupado' : 'Marcar disponible',
+            icon: isAvailable ? (
+              <Timer color={theme.colors.text} size={18} />
+            ) : (
+              <ToggleLeft color={theme.colors.text} size={18} />
+            ),
+            onPress: isAvailable ? handleToggleBusy : handleSetAvailable,
+          },
           {
             key: 'edit',
             label: 'Editar',
@@ -168,6 +224,12 @@ export function OwnerChargerCard({
             },
           },
         ]}
+      />
+
+      {/* Duration picker bottom sheet (shown when toggling to busy) */}
+      <DurationPickerSheet
+        ref={durationPickerRef}
+        onConfirm={handleDurationConfirm}
       />
     </Pressable>
   );
@@ -297,6 +359,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 6,
+  },
+  countdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   sheetBackdrop: {
     flex: 1,

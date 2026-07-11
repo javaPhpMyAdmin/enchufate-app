@@ -123,6 +123,32 @@ export const chargerStore = {
   },
 
   /**
+   * Toggle a charger to "busy" with a duration. Sets `busySince` to now
+   * and `estimatedDurationMinutes` to the chosen value.
+   */
+  async toggleBusy(id: string, durationMinutes: number): Promise<void> {
+    await chargerService.updateCharger(id, {
+      status: 'busy',
+      busySince: new Date().toISOString(),
+      estimatedDurationMinutes: durationMinutes,
+    });
+    void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
+  },
+
+  /**
+   * Toggle a charger back to "available". Clears `busySince` and
+   * `estimatedDurationMinutes`.
+   */
+  async setAvailable(id: string): Promise<void> {
+    await chargerService.updateCharger(id, {
+      status: 'available',
+      busySince: null,
+      estimatedDurationMinutes: null,
+    });
+    void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
+  },
+
+  /**
    * Reset the store to empty (used by tests / debug tooling).
    * Clears the query cache for chargers.
    */

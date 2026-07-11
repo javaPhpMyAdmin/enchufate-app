@@ -49,7 +49,7 @@ import BottomSheet, {
 
 import { Avatar, Divider } from '@/components/ui';
 import type { Charger, ChargerStatus, User } from '@/data/types';
-import { STATUS_LABELS } from '@/data/types';
+import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
 import {
   formatCountdown,
   formatPower,
@@ -57,6 +57,7 @@ import {
   formatRating,
   formatReviewCount,
 } from '@/lib/format';
+import { useCountdownTimer } from '@/hooks/useCountdownTimer';
 import { useReviewsForUser } from '@/hooks/useReviewsQuery';
 import { useTheme } from '@/theme';
 
@@ -195,6 +196,17 @@ function DetailContent({
   const displayRating = hasReviews ? formatRating(owner.rating) : null;
   const displayReviewCount = hasReviews ? formatReviewCount(owner.reviewCount) : null;
 
+  // Live countdown timer — ticks every second when busy.
+  const countdown = useCountdownTimer(
+    charger.busySince ?? null,
+    charger.estimatedDurationMinutes ?? null,
+  );
+
+  // Determine if the charger is "effectively available" — either status is
+  // available, or the countdown has expired.
+  const isEffectivelyAvailable =
+    charger.status === 'available' || countdown.isExpired;
+
   return (
     <>
       {/* Header — avatar + owner name + rating + status pill */}
@@ -242,7 +254,7 @@ function DetailContent({
 
       <Divider style={styles.divider} />
 
-      {/* Specs: POTENCIA | PRECIO */}
+      {/* Specs: POTENCIA | CONECTOR | PRECIO */}
       <View style={styles.specsRow}>
         <View style={styles.spec}>
           <Zap color={theme.colors.text} size={20} />
@@ -262,6 +274,28 @@ function DetailContent({
               ]}
             >
               {formatPower(charger.powerKw)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.specDivider} />
+        <View style={styles.spec}>
+          <Zap color={theme.colors.text} size={20} />
+          <View style={styles.specText}>
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.colors.textMuted },
+              ]}
+            >
+              CONECTOR
+            </Text>
+            <Text
+              style={[
+                theme.typography.h3,
+                { color: theme.colors.text, marginTop: 2 },
+              ]}
+            >
+              {CONNECTOR_LABELS[charger.type]}
             </Text>
           </View>
         </View>
@@ -289,8 +323,8 @@ function DetailContent({
         </View>
       </View>
 
-      {/* Countdown for non-available chargers */}
-      {charger.status !== 'available' && charger.availableInMinutes ? (
+      {/* Countdown for non-available chargers — live ticking */}
+      {!isEffectivelyAvailable ? (
         <View
           style={[
             styles.countdownBox,
@@ -311,7 +345,7 @@ function DetailContent({
               { color: theme.colors.warning, marginTop: 2 },
             ]}
           >
-            {`Libre en ${formatCountdown(charger.availableInMinutes)}`}
+            {`Libre en ${countdown.display}`}
           </Text>
         </View>
       ) : null}

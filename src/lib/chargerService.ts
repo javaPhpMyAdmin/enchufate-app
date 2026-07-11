@@ -31,6 +31,8 @@ interface ChargerRow {
   review_count: number;
   amenities: string[] | null;
   photos: string[] | null;
+  busy_since: string | null;
+  estimated_duration_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +68,16 @@ function rowToCharger(row: ChargerRow): Charger {
     powerKw: row.power_kw,
     pricePerHour: row.price_per_hour,
     status: row.status as Charger['status'],
+    availableInMinutes:
+      row.status !== 'available' && row.busy_since && row.estimated_duration_minutes
+        ? Math.max(
+            0,
+            row.estimated_duration_minutes -
+              Math.floor((Date.now() - new Date(row.busy_since).getTime()) / 60000),
+          )
+        : undefined,
+    busySince: row.busy_since ?? undefined,
+    estimatedDurationMinutes: row.estimated_duration_minutes ?? undefined,
     location,
     address: row.address,
     neighborhood: row.neighborhood ?? '',
@@ -144,6 +156,8 @@ export async function updateCharger(
     city?: string;
     photos?: string[];
     status?: string;
+    busySince?: string | null;
+    estimatedDurationMinutes?: number | null;
   },
 ): Promise<Charger> {
   const { data, error } = await supabase.rpc('update_charger_rpc', {
@@ -159,6 +173,10 @@ export async function updateCharger(
     ...(patch.city !== undefined ? { p_city: patch.city } : {}),
     ...(patch.status !== undefined ? { p_status: patch.status } : {}),
     ...(patch.photos !== undefined ? { p_photos: patch.photos } : {}),
+    ...(patch.busySince !== undefined ? { p_busy_since: patch.busySince } : {}),
+    ...(patch.estimatedDurationMinutes !== undefined
+      ? { p_estimated_duration_minutes: patch.estimatedDurationMinutes }
+      : {}),
   });
 
   if (error || !data) {
