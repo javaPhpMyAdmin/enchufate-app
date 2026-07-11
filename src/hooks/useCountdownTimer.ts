@@ -8,7 +8,11 @@
  *
  * This is a **display-only** hook — it never writes to the DB.
  * TanStack Query's `refetchOnWindowFocus` reconciles any drift on foreground.
+ *
+ * When the countdown expires, fires a local push notification so the user
+ * is alerted even if the app is backgrounded.
  */
+import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
@@ -24,13 +28,16 @@ export interface CountdownResult {
 /**
  * @param busySince  ISO 8601 timestamp when the charger was set to busy, or null/undefined.
  * @param estimatedDurationMinutes  Chosen duration in minutes, or null/undefined.
+ * @param chargerId  Optional charger ID — included in the notification's data payload.
  */
 export function useCountdownTimer(
   busySince: string | null | undefined,
   estimatedDurationMinutes: number | null | undefined,
+  chargerId?: string,
 ): CountdownResult {
   const [now, setNow] = useState(Date.now());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasFiredExpiryRef = useRef(false);
 
   // Compute estimated end once from the inputs.
   const estimatedEnd = (() => {
@@ -76,6 +83,29 @@ export function useCountdownTimer(
     const sub = AppState.addEventListener('change', handleAppState);
     return () => sub.remove();
   }, [estimatedEnd?.getTime()]);
+
+  // Fire a local notification when the countdown expires.
+  useEffect(() => {
+    if (!estimatedEnd || hasFiredExpiryRef.current) return;
+
+    const totalSecondsLeft = Math.max(
+      0,
+      Math.floor((estimatedEnd.getTime() - now) / 1000),
+    );
+
+    if (totalSecondsLeft === 0 && !hasFiredExpiryRef.current) {
+      hasFiredExpiryRef.current = true;
+
+      void Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Tu cargador está disponible',
+          body: 'El cargador que estabas mirando ya está libre.',
+          data: { type: 'charger-available', chargerId: chargerId ?? null },
+        },
+        trigger: null, // immediate
+      });
+    }
+  }, [now, estimatedEnd?.getTime(), chargerId]);
 
   // Derive result.
   if (!estimatedEnd) {

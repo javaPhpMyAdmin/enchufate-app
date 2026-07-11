@@ -28,10 +28,13 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import { registerPushToken, clearPushToken } from '@/lib/notifications';
 import type { User } from '@/data/types';
 
 import {
@@ -112,6 +115,7 @@ export function AuthProvider({
   const [onboardingSeen, setOnboardingSeenState] = useState<boolean | null>(
     null,
   );
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Bootstrap: hydrate the session + profile + onboarding flag, then stay
   // in sync via the auth state change listener.
@@ -130,6 +134,8 @@ export function AuthProvider({
         if (cancelled) return;
         setSession(toUserSession(supaSession, user));
         setStatus('authenticated');
+        // Register push token for this device after successful sign-in.
+        void registerPushToken(supaSession.user.id);
       } catch (err) {
         if (cancelled) return;
         console.warn('[auth] failed to hydrate profile', err);
@@ -157,6 +163,9 @@ export function AuthProvider({
           }),
         );
         setStatus('authenticated');
+        // Even if profile fetch failed, register push token so the user
+        // still receives notifications.
+        void registerPushToken(supaSession.user.id);
       }
     };
 
@@ -190,14 +199,32 @@ export function AuthProvider({
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         void applySession(supaSession);
       } else if (event === 'SIGNED_OUT') {
+        // Clear the push token so stale tokens don't receive notifications.
+        if (session?.user.id) {
+          void clearPushToken(session.user.id);
+        }
         setSession(null);
         setStatus('unauthenticated');
       }
     });
 
+    // 3. AppState listener: re-register push token when the app comes to
+    //    the foreground. This handles token rotation and token expiry.
+    const handleAppState = (next: AppStateStatus) => {
+      if (appStateRef.current.match(/inactive|background/) && next === 'active') {
+        // App just came to foreground — re-register the token if authenticated.
+        if (session?.user.id) {
+          void registerPushToken(session.user.id);
+        }
+      }
+      appStateRef.current = next;
+    };
+    const appSub = AppState.addEventListener('change', handleAppState);
+
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
+      appSub.remove();
     };
   }, []);
 

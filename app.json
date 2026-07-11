@@ -37,10 +37,11 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
+      "expo-notifications",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Enchufate uses your location to show nearby chargers."
+          "locationAlwaysAndWhenInUsePermission": "Enchufate usa tu ubicación para encontar los cargadores eléctricos mas cercanos a ti."
         }
       ]
     ],

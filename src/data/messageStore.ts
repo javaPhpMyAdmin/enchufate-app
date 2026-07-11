@@ -283,7 +283,78 @@ async function addMessage(input: NewMessageInput): Promise<Message> {
     })
     .eq('id', input.conversationId);
 
+  // 3. Fire push notification to recipients (non-blocking).
+  const recipients = conv.participant_ids.filter(
+    (id) => id !== input.authorId,
+  );
+  if (recipients.length > 0) {
+    // Fetch the sender's display name for the notification title.
+    const { data: authorProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', input.authorId)
+      .single();
+    const authorName =
+      (authorProfile?.display_name as string | undefined) ?? 'Alguien';
+
+    for (const recipientId of recipients) {
+      void sendPushToRecipient(
+        recipientId,
+        authorName,
+        input.body,
+        input.conversationId,
+      );
+    }
+  }
+
   return message;
+}
+
+/**
+ * Send a push notification to a recipient via the send-push Edge Function.
+ * Called fire-and-forget after addMessage succeeds — errors are logged but
+ * never thrown (push failure must not break the messaging flow).
+ */
+async function sendPushToRecipient(
+  recipientId: string,
+  authorName: string,
+  body: string,
+  conversationId: string,
+): Promise<void> {
+  try {
+    // Fetch the recipient's push token.
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('push_token')
+      .eq('id', recipientId)
+      .not('push_token', 'is', null)
+      .single();
+
+    if (!profile?.push_token) return;
+
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) return;
+
+    const preview =
+      body.length > 60 ? `${body.slice(0, 57)}...` : body;
+
+    await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        push_token: profile.push_token,
+        title: `Nuevo mensaje de ${authorName}`,
+        body: preview,
+        data: { type: 'new-message', conversationId },
+      }),
+    });
+  } catch (err) {
+    console.warn('[messageStore] push notification failed (non-blocking)', err);
+  }
 }
 
 /**
