@@ -2,10 +2,14 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Calendar, Home, MapPin, MessageCircle, User } from 'lucide-react-native';
 
+import { useAuth } from '@/features/auth';
+import { useUnreadCountForUser } from '@/data/messageStore';
 import { useTheme } from '@/theme';
 
 export default function TabsLayout(): React.JSX.Element {
   const theme = useTheme();
+  const { session } = useAuth();
+  const { count: unreadCount } = useUnreadCountForUser(session?.user?.id);
 
   return (
     <Tabs
@@ -51,6 +55,15 @@ export default function TabsLayout(): React.JSX.Element {
           tabBarIcon: ({ color, size }) => (
             <MessageCircle color={color} size={size} />
           ),
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: theme.colors.primary,
+            fontSize: 10,
+            minWidth: 18,
+            height: 18,
+            lineHeight: 18,
+            borderRadius: 9,
+          },
         }}
       />
       <Tabs.Screen
