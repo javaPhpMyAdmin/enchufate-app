@@ -77,9 +77,9 @@ export default function LoginScreen(): React.JSX.Element {
     [handleSubmit, redirectTo, router, signIn],
   );
 
-  const handleForgotPassword = useCallback((): void => {
+  const handleForgotPassword = (): void => {
     setForgotAlertVisible(true);
-  }, []);
+  };
 
   const isSubmitDisabled = submitting || !formState.isValid;
 

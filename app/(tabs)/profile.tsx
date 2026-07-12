@@ -73,19 +73,19 @@ export default function ProfileScreen(): React.JSX.Element {
     onAction?: () => void;
   }>({ title: '', variant: 'info' });
 
-  const handleLogin = useCallback((): void => {
+  const handleLogin = (): void => {
     router.push('/(public)/login');
-  }, [router]);
+  };
 
-  const handleEdit = useCallback((): void => {
+  const handleEdit = (): void => {
     router.push('/profile/edit');
-  }, [router]);
+  };
 
-  const handleViewPublicProfile = useCallback((): void => {
+  const handleViewPublicProfile = (): void => {
     if (session?.user.id) {
       router.push(`/profile/${session.user.id}`);
     }
-  }, [router, session?.user.id]);
+  };
 
   const handleLogout = useCallback((): void => {
     setAlertConfig({
@@ -101,14 +101,14 @@ export default function ProfileScreen(): React.JSX.Element {
     setAlertVisible(true);
   }, [router, signOut]);
 
-  const handleStub = useCallback((label: string) => {
+  const handleStub = (label: string) => {
     setAlertConfig({
       title: 'Próximamente',
       message: `${label} llega en una próxima versión.`,
       variant: 'info',
     });
     setAlertVisible(true);
-  }, []);
+  };
 
   // Unauthenticated: centered welcome + login CTA.
   if (status === 'loading' || !session) {
@@ -232,24 +232,18 @@ function ProfileBody({
   // even if their account wasn't created with the isHost flag set.
   const showStats = isHost || chargers.length > 0;
 
-  const handlePublish = useCallback((): void => {
+  const handlePublish = (): void => {
     router.push('/publish');
-  }, [router]);
+  };
 
   // Tap a charger card → navigate to map with that charger selected.
-  const handleOpenDetail = useCallback(
-    (id: string) => {
-      router.push({ pathname: '/(tabs)/map', params: { select: id } });
-    },
-    [router],
-  );
+  const handleOpenDetail = (id: string) => {
+    router.push({ pathname: '/(tabs)/map', params: { select: id } });
+  };
 
-  const handleEditCharger = useCallback(
-    (id: string) => {
-      router.push({ pathname: '/publish', params: { edit: id } });
-    },
-    [router],
-  );
+  const handleEditCharger = (id: string) => {
+    router.push({ pathname: '/publish', params: { edit: id } });
+  };
 
   const handleDeletePrompt = useCallback((id: string) => {
     const c = chargerStore.byId(id);

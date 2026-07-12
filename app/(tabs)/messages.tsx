@@ -84,24 +84,21 @@ function MessagesAuthenticated({
   const { conversations, isLoading } = useConversationsForUser(userId);
   const [query, setQuery] = useState<string>('');
 
-  const handleOpenConversation = useCallback(
-    (conversationId: string) => {
-      router.push(`/messages/${conversationId}`);
-    },
-    [router],
-  );
+  const handleOpenConversation = (conversationId: string) => {
+    router.push(`/messages/${conversationId}`);
+  };
 
-  const handleSearch = useCallback((text: string) => {
+  const handleSearch = (text: string) => {
     setQuery(text);
-  }, []);
+  };
 
-  const handleClearSearch = useCallback(() => {
+  const handleClearSearch = () => {
     setQuery('');
-  }, []);
+  };
 
-  const handleFindChargers = useCallback(() => {
+  const handleFindChargers = () => {
     router.push('/(tabs)/map');
-  }, [router]);
+  };
 
   if (isLoading) {
     return (

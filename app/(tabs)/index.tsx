@@ -112,17 +112,17 @@ export default function HomeScreen(): React.JSX.Element {
     );
   }
 
-  const handleFindCharger = useCallback((): void => {
+  const handleFindCharger = (): void => {
     router.push('/(tabs)/map');
-  }, [router]);
+  };
 
-  const handlePublish = useCallback((): void => {
+  const handlePublish = (): void => {
     if (status !== 'authenticated') {
       router.push('/(public)/login');
       return;
     }
     router.push('/publish');
-  }, [router, status]);
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>

@@ -100,26 +100,23 @@ export default function PublicProfileScreen(): React.JSX.Element {
     router.push(`/messages/${conv.id}`);
   }, [user, session?.user, router]);
 
-  const handleViewCharger = useCallback(
-    (chargerId: string) => {
-      // The map screen owns the charger detail sheet, so jumping there
-      // shows the user the location. Tapping a charger card inside the
-      // public profile is a discovery flow, not a "go straight to
-      // detail" flow — letting the map handle selection keeps the UX
-      // consistent with how drivers find chargers.
-      void chargerId; // reserved for future deep-link param
-      router.push('/(tabs)/map');
-    },
-    [router],
-  );
+  const handleViewCharger = (chargerId: string) => {
+    // The map screen owns the charger detail sheet, so jumping there
+    // shows the user the location. Tapping a charger card inside the
+    // public profile is a discovery flow, not a "go straight to
+    // detail" flow — letting the map handle selection keeps the UX
+    // consistent with how drivers find chargers.
+    void chargerId; // reserved for future deep-link param
+    router.push('/(tabs)/map');
+  };
 
-  const handleBack = useCallback((): void => {
+  const handleBack = (): void => {
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/(tabs)');
     }
-  }, [router]);
+  };
 
   // Not-found: EmptyState with a back action.
   if (!userId || !user) {

@@ -63,6 +63,8 @@ export function useDeleteReview() {
   return useMutation({
     mutationFn: reviewService.deleteReview,
     onSuccess: () => {
+      // Broad invalidation — we only have the review ID, not the target user/charger.
+      // The query client deduplicates so this is cheap.
       void qc.invalidateQueries({ queryKey: ['reviews'] });
       void qc.invalidateQueries({ queryKey: ['chargers'] });
     },

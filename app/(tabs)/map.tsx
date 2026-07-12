@@ -171,21 +171,21 @@ export default function MapScreen(): React.JSX.Element {
     mapRef.current?.animateTo(userLocation, 1);
   }, [userLocation]);
 
-  const handleToggleView = useCallback(() => {
+  const handleToggleView = () => {
     setViewMode((m: MapViewMode) => (m === 'map' ? 'list' : 'map'));
-  }, []);
+  };
 
-  const handleOpenFilters = useCallback(() => {
+  const handleOpenFilters = () => {
     filtersSheetRef.current?.open(filters);
-  }, [filters]);
+  };
 
-  const handleApplyFilters = useCallback((next: ChargerFilters) => {
+  const handleApplyFilters = (next: ChargerFilters) => {
     setFilters(next);
-  }, []);
+  };
 
-  const handleResetFilters = useCallback(() => {
+  const handleResetFilters = () => {
     setFilters(DEFAULT_FILTERS);
-  }, []);
+  };
 
   // Phase 5 (T-20): "Contactar" in the bottom sheet navigates to the
   // chat screen with the owner's id. The conversation is NOT created yet —
