@@ -119,6 +119,20 @@ export default function MapScreen(): React.JSX.Element {
     return applyFilters(allChargers, filters, userLocation);
   }, [allChargers, filters, userLocation]);
 
+  // Detect if user has applied non-default filters (for the pill badge).
+  const hasActiveFilters = useMemo(() => {
+    const d = DEFAULT_FILTERS;
+    return (
+      filters.status.length !== d.status.length ||
+      filters.connectorTypes.length !== d.connectorTypes.length ||
+      filters.powerRange[0] !== d.powerRange[0] ||
+      filters.powerRange[1] !== d.powerRange[1] ||
+      filters.priceRange[0] !== d.priceRange[0] ||
+      filters.priceRange[1] !== d.priceRange[1] ||
+      filters.maxDistanceKm !== d.maxDistanceKm
+    );
+  }, [filters]);
+
   const selectedCharger = useMemo<Charger | null>(() => {
     if (!selectedId) return null;
     return visibleChargers.find((c) => c.id === selectedId) ??
@@ -247,6 +261,7 @@ export default function MapScreen(): React.JSX.Element {
               onFiltersPress={handleOpenFilters}
               onMyLocationPress={handleMyLocation}
               hasUserLocation={userLocation !== null}
+              hasActiveFilters={hasActiveFilters}
             />
           </View>
         ) : (
@@ -275,6 +290,7 @@ export default function MapScreen(): React.JSX.Element {
               onFiltersPress={handleOpenFilters}
               onMyLocationPress={handleMyLocation}
               hasUserLocation={userLocation !== null}
+              hasActiveFilters={hasActiveFilters}
             />
           </View>
         )}
