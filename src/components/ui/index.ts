@@ -1,4 +1,5 @@
 export { Avatar, type AvatarProps, type AvatarSize } from './Avatar';
+export { AuthPromptModal, type AuthPromptModalProps } from './AuthPromptModal';
 export { Badge, type BadgeProps, type BadgeStatus, type BadgeTone } from './Badge';
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
 export { Card, CardHeader, CardBody, CardFooter, type CardProps, type CardVariant } from './Card';

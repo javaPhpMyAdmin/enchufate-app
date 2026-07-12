@@ -27,7 +27,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -49,7 +48,7 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 
-import { Avatar, Divider } from '@/components/ui';
+import { AuthPromptModal, Avatar, Divider } from '@/components/ui';
 import type { Charger, ChargerStatus, User } from '@/data/types';
 import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
 import { useAuth } from '@/features/auth';
@@ -198,8 +197,16 @@ function DetailContent({
   const currentUserId = session?.user?.id;
   const isLoggedIn = !!currentUserId;
   const isOwnCharger = currentUserId === owner.id;
-  const canInteract = isLoggedIn && !isOwnCharger;
   const { data: ownerReviews } = useReviewsForUser(owner.id);
+
+  // Auth prompt modal state
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [authModalAction, setAuthModalAction] = useState<'contactar' | 'reseñar'>('contactar');
+
+  const showAuthPrompt = (action: 'contactar' | 'reseñar') => {
+    setAuthModalAction(action);
+    setAuthModalVisible(true);
+  };
 
   const hasReviews = owner.reviewCount > 0;
   const displayRating = hasReviews ? formatRating(owner.rating) : null;
@@ -366,18 +373,11 @@ function DetailContent({
         <Pressable
           onPress={() => {
             if (!isLoggedIn) {
-              Alert.alert(
-                'Iniciá sesión',
-                'Necesitás iniciar sesión para contactar al anfitrión.',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  { text: 'Iniciar sesión', onPress: () => { onClose(); router.push('/(public)/login'); } },
-                ],
-              );
+              showAuthPrompt('contactar');
               return;
             }
             if (isOwnCharger) {
-              Alert.alert('Este es tu cargador', 'No podés contactarte a vos mismo.');
+              showAuthPrompt('contactar');
               return;
             }
             onContact(owner.id);
@@ -405,18 +405,11 @@ function DetailContent({
           <Pressable
             onPress={() => {
               if (!isLoggedIn) {
-                Alert.alert(
-                  'Iniciá sesión',
-                  'Necesitás iniciar sesión para dejar una reseña.',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Iniciar sesión', onPress: () => { onClose(); router.push('/(public)/login'); } },
-                  ],
-                );
+                showAuthPrompt('reseñar');
                 return;
               }
               if (isOwnCharger) {
-                Alert.alert('Este es tu cargador', 'No podés reseñarte a vos mismo.');
+                showAuthPrompt('reseñar');
                 return;
               }
               onReview(owner.id, charger.id);
@@ -462,6 +455,17 @@ function DetailContent({
           </Text>
         </Pressable>
       </View>
+
+      <AuthPromptModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        onLogin={() => {
+          setAuthModalVisible(false);
+          onClose();
+          router.push('/(public)/login');
+        }}
+        action={authModalAction}
+      />
     </>
   );
 }
