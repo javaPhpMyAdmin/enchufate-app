@@ -368,93 +368,87 @@ function DetailContent({
 
       <Divider style={styles.divider} />
 
-      {/* Actions — Contactar | Reseña | Cómo llegar */}
-      <View style={styles.actions}>
-        <Pressable
-          onPress={() => {
-            if (!isLoggedIn) {
-              showAuthPrompt('contactar');
-              return;
-            }
-            if (isOwnCharger) {
-              showAuthPrompt('contactar');
-              return;
-            }
-            onContact(owner.id);
-            onClose();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Contactar al anfitrión"
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.actionButtonSecondary,
-            { opacity: pressed ? 0.85 : 1 },
-          ]}
-        >
-          <MessageCircle color={theme.colors.text} size={18} />
-          <Text
-            style={[
-              theme.typography.smallBold,
-              { color: theme.colors.text, marginLeft: 8 },
-            ]}
-          >
-            Contactar
-          </Text>
-        </Pressable>
-        {onReview ? (
+      {/* Actions — Contactar | Reseña | Cómo llegar (hidden for own charger) */}
+      {!isOwnCharger && (
+        <View style={styles.actions}>
           <Pressable
             onPress={() => {
               if (!isLoggedIn) {
-                showAuthPrompt('reseñar');
+                showAuthPrompt('contactar');
                 return;
               }
-              if (isOwnCharger) {
-                showAuthPrompt('reseñar');
-                return;
-              }
-              onReview(owner.id, charger.id);
+              onContact(owner.id);
               onClose();
             }}
             accessibilityRole="button"
-            accessibilityLabel="Dejar una reseña"
+            accessibilityLabel="Contactar al anfitrión"
             style={({ pressed }) => [
               styles.actionButton,
               styles.actionButtonSecondary,
               { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Star color={theme.colors.warning} size={18} />
+            <MessageCircle color={theme.colors.text} size={18} />
             <Text
               style={[
                 theme.typography.smallBold,
                 { color: theme.colors.text, marginLeft: 8 },
               ]}
             >
-              Reseña
+              Contactar
             </Text>
           </Pressable>
-        ) : null}
-        <Pressable
-          onPress={onDirections}
-          accessibilityRole="button"
-          accessibilityLabel="Cómo llegar al cargador"
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.actionButtonPrimary,
-            { opacity: pressed ? 0.85 : 1 },
-          ]}
-        >
-          <Navigation color={theme.colors.textOnPrimary} size={18} />
-          <Text
-            style={[
-              theme.typography.smallBold,
-              { color: theme.colors.textOnPrimary, marginLeft: 8 },
+          {onReview ? (
+            <Pressable
+              onPress={() => {
+                if (!isLoggedIn) {
+                  showAuthPrompt('reseñar');
+                  return;
+                }
+                onReview(owner.id, charger.id);
+                onClose();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Dejar una reseña"
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.actionButtonSecondary,
+                { opacity: pressed ? 0.85 : 1 },
+              ]}
+            >
+              <Star color={theme.colors.warning} size={18} />
+              <Text
+                style={[
+                  theme.typography.smallBold,
+                  { color: theme.colors.text, marginLeft: 8 },
+                ]}
+              >
+                Reseña
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onDirections}
+            accessibilityRole="button"
+            accessibilityLabel="Cómo llegar al cargador"
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionButtonPrimary,
+              { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            Cómo llegar
-          </Text>
-        </Pressable>
-      </View>
+            <Navigation color={theme.colors.textOnPrimary} size={18} />
+            <Text
+              style={[
+                theme.typography.smallBold,
+                { color: theme.colors.textOnPrimary, marginLeft: 8 },
+              ]}
+            >
+              Cómo llegar
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       <AuthPromptModal
         visible={authModalVisible}
