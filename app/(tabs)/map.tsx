@@ -4,11 +4,9 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type ListRenderItemInfo,
 } from 'react-native';
-import { Search, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -55,7 +53,6 @@ export default function MapScreen(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ChargerFilters>(DEFAULT_FILTERS);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
-  const [query, setQuery] = useState('');
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
 
   // Auto-select a charger when navigated from profile (?select=<id>).
@@ -117,18 +114,10 @@ export default function MapScreen(): React.JSX.Element {
   // (useChargers() already wraps useChargersQuery() internally).
   const { data: allChargers = [], isLoading: chargersLoading } = useChargersQuery();
 
-  // Apply filters + text search.
+  // Apply filters only (no text search — map is for quick browsing).
   const visibleChargers = useMemo<Charger[]>(() => {
-    const filtered = applyFilters(allChargers, filters, userLocation);
-    if (!query.trim()) return filtered;
-    const q = query.toLowerCase();
-    return filtered.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.address.toLowerCase().includes(q) ||
-        c.neighborhood.toLowerCase().includes(q),
-    );
-  }, [allChargers, filters, userLocation, query]);
+    return applyFilters(allChargers, filters, userLocation);
+  }, [allChargers, filters, userLocation]);
 
   const selectedCharger = useMemo<Charger | null>(() => {
     if (!selectedId) return null;
@@ -243,42 +232,6 @@ export default function MapScreen(): React.JSX.Element {
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <SafeAreaView edges={['top']} style={styles.flex}>
-        {/* Search header */}
-        <View style={[styles.searchBar, { backgroundColor: theme.colors.background }]}>
-          <View
-            style={[
-              styles.searchInputWrap,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Search color={theme.colors.textMuted} size={18} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Buscar cargadores, barrios o direcciones"
-              placeholderTextColor={theme.colors.textLight}
-              style={[
-                styles.searchInput,
-                theme.typography.body,
-                { color: theme.colors.text },
-              ]}
-              returnKeyType="search"
-            />
-            {query.length > 0 ? (
-              <Pressable
-                onPress={() => setQuery('')}
-                accessibilityLabel="Limpiar búsqueda"
-                hitSlop={8}
-              >
-                <X color={theme.colors.textMuted} size={18} />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
         {viewMode === 'map' ? (
           <View style={styles.flex}>
             <ChargerMap
@@ -357,23 +310,6 @@ export default function MapScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  searchBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  searchInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 0,
-  },
   empty: {
     paddingVertical: 64,
     paddingHorizontal: 24,
