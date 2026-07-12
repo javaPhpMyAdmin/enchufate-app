@@ -15,7 +15,7 @@
  * once Phase 9 wires up real notification settings, payment methods, etc.
  */
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -230,10 +230,7 @@ function ProfileBody({
 
   // The current user is always a "host" if they have at least one charger,
   // even if their account wasn't created with the isHost flag set.
-  const showStats = useMemo(
-    () => isHost || chargers.length > 0,
-    [isHost, chargers.length],
-  );
+  const showStats = isHost || chargers.length > 0;
 
   const handlePublish = useCallback((): void => {
     router.push('/publish');

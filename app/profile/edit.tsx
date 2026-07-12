@@ -21,7 +21,7 @@
  */
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Stack, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
@@ -42,18 +42,15 @@ export default function EditProfileScreen(): React.JSX.Element {
 
   const current = session?.user;
 
-  const defaultValues = useMemo<EditProfileInput>(
-    () => ({
-      name: current?.name ?? '',
-      surname: current?.surname ?? '',
-      email: current?.email ?? '',
-      phone: current?.phone ?? '',
-      city: current?.city ?? '',
-      bio: current?.bio ?? '',
-      avatarUrl: current?.avatarUrl ?? '',
-    }),
-    [current],
-  );
+  const defaultValues: EditProfileInput = {
+    name: current?.name ?? '',
+    surname: current?.surname ?? '',
+    email: current?.email ?? '',
+    phone: current?.phone ?? '',
+    city: current?.city ?? '',
+    bio: current?.bio ?? '',
+    avatarUrl: current?.avatarUrl ?? '',
+  };
 
   const {
     handleSubmit,

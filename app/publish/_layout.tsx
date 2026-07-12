@@ -18,7 +18,7 @@ import {
   usePathname,
   useRouter,
 } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { X } from 'lucide-react-native';
@@ -134,7 +134,7 @@ function WizardChrome({
   const params = useLocalSearchParams<{ edit?: string | string[] }>();
   const editParam = Array.isArray(params.edit) ? params.edit[0] : params.edit;
   const pathname = usePathname();
-  const currentStep = useMemo(() => resolveStep(pathname), [pathname]);
+  const currentStep = resolveStep(pathname);
 
   const [editHydrated, setEditHydrated] = useState<boolean>(!editParam);
 
