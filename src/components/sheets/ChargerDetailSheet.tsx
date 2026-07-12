@@ -27,6 +27,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Alert,
   Linking,
   Platform,
   Pressable,
@@ -41,6 +42,7 @@ import {
   Star,
   Zap,
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
@@ -191,6 +193,7 @@ function DetailContent({
   onClose,
 }: DetailContentProps): React.JSX.Element {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useAuth();
   const currentUserId = session?.user?.id;
   const isLoggedIn = !!currentUserId;
@@ -360,34 +363,62 @@ function DetailContent({
 
       {/* Actions — Contactar | Reseña | Cómo llegar */}
       <View style={styles.actions}>
-        {canInteract ? (
-          <Pressable
-            onPress={() => {
-              onContact(owner.id);
-              onClose();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Contactar al anfitrión"
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionButtonSecondary,
-              { opacity: pressed ? 0.85 : 1 },
+        <Pressable
+          onPress={() => {
+            if (!isLoggedIn) {
+              Alert.alert(
+                'Iniciá sesión',
+                'Necesitás iniciar sesión para contactar al anfitrión.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Iniciar sesión', onPress: () => { onClose(); router.push('/(public)/login'); } },
+                ],
+              );
+              return;
+            }
+            if (isOwnCharger) {
+              Alert.alert('Este es tu cargador', 'No podés contactarte a vos mismo.');
+              return;
+            }
+            onContact(owner.id);
+            onClose();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Contactar al anfitrión"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.actionButtonSecondary,
+            { opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <MessageCircle color={theme.colors.text} size={18} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.text, marginLeft: 8 },
             ]}
           >
-            <MessageCircle color={theme.colors.text} size={18} />
-            <Text
-              style={[
-                theme.typography.smallBold,
-                { color: theme.colors.text, marginLeft: 8 },
-              ]}
-            >
-              Contactar
-            </Text>
-          </Pressable>
-        ) : null}
-        {canInteract && onReview ? (
+            Contactar
+          </Text>
+        </Pressable>
+        {onReview ? (
           <Pressable
             onPress={() => {
+              if (!isLoggedIn) {
+                Alert.alert(
+                  'Iniciá sesión',
+                  'Necesitás iniciar sesión para dejar una reseña.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Iniciar sesión', onPress: () => { onClose(); router.push('/(public)/login'); } },
+                  ],
+                );
+                return;
+              }
+              if (isOwnCharger) {
+                Alert.alert('Este es tu cargador', 'No podés reseñarte a vos mismo.');
+                return;
+              }
               onReview(owner.id, charger.id);
               onClose();
             }}
