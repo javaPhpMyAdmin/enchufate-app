@@ -33,7 +33,7 @@ const PALETTE: Record<
   busy: { bg: '#E2E8F0', fg: '#475569', border: '#94A3B8' },
 };
 
-export function ChargerStatusBadge({
+export const ChargerStatusBadge = React.memo(function ChargerStatusBadge({
   status,
   style,
 }: ChargerStatusBadgeProps): React.JSX.Element {
@@ -58,7 +58,7 @@ export function ChargerStatusBadge({
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

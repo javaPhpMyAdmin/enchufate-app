@@ -42,12 +42,12 @@ export default function UserReviewsScreen(): React.JSX.Element {
         <FlatList
           data={reviews}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{
-            paddingBottom: insets.bottom + 24,
-            paddingTop: 16,
-          }}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
           renderItem={({ item }) => (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={styles.listItem}>
               <ReviewCard
                 authorName={item.authorName}
                 authorAvatar={item.authorAvatar}
@@ -71,5 +71,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listContent: {
+    paddingTop: 16,
+  },
+  listItem: {
+    paddingHorizontal: 20,
   },
 });

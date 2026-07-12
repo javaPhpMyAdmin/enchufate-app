@@ -32,7 +32,7 @@ import {
 } from '@/components/map';
 import { useAuth } from '@/features/auth';
 import { fetchProfileById } from '@/features/auth/profileMapper';
-import { useChargers, chargerStore } from '@/data/chargerStore';
+import { chargerStore } from '@/data/chargerStore';
 import { useChargersQuery } from '@/hooks/useChargersQuery';
 import { mockUsers } from '@/data/mocks/users';
 import { DEFAULT_FILTERS, type Charger, type ChargerFilters, type LatLng, type User } from '@/data/types';
@@ -72,7 +72,7 @@ export default function MapScreen(): React.JSX.Element {
   // Auto-select a charger when navigated from profile (?select=<id>).
   useEffect(() => {
     if (selectChargerId) {
-      handleSelectCharger(selectChargerId);
+      handleOpenDetail(selectChargerId);
     }
   }, [selectChargerId]);
 
@@ -124,8 +124,9 @@ export default function MapScreen(): React.JSX.Element {
 
   // The store is the single source of truth. Subscribing here means
   // newly published chargers appear on the map without a refresh.
-  const allChargers = useChargers();
-  const { isLoading: chargersLoading } = useChargersQuery();
+  // Use the query hook directly to avoid a double subscription
+  // (useChargers() already wraps useChargersQuery() internally).
+  const { data: allChargers = [], isLoading: chargersLoading } = useChargersQuery();
 
   // Apply filters + text search.
   const visibleChargers = useMemo<Charger[]>(() => {
@@ -173,23 +174,10 @@ export default function MapScreen(): React.JSX.Element {
     }
   }, [selectedCharger, selectedOwner]);
 
-  const handleSelectCharger = useCallback(
-    (id: string) => {
-      setSelectedId(id);
-      // Open the sheet directly — resolve the real owner from Supabase.
-      const c = chargerStore.byId(id);
-      if (c) {
-        void resolveOwner(c.ownerId).then((o) => {
-          detailSheetRef.current?.show(c, o);
-        });
-      }
-    },
-    [],
-  );
-
   const handleOpenDetail = useCallback(
     (id: string) => {
       setSelectedId(id);
+      // Open the sheet directly — resolve the real owner from Supabase.
       const c = chargerStore.byId(id);
       if (c) {
         void resolveOwner(c.ownerId).then((o) => {
@@ -248,6 +236,16 @@ export default function MapScreen(): React.JSX.Element {
     [router],
   );
 
+  const handleReview = useCallback(
+    (ownerId: string, chargerId: string) => {
+      router.push({
+        pathname: '/reviews/write',
+        params: { targetUserId: ownerId, chargerId },
+      });
+    },
+    [router],
+  );
+
   // Pre-fetch real owner profiles for visible chargers.
   const [ownerProfiles, setOwnerProfiles] = useState<Record<string, User>>({});
   useEffect(() => {
@@ -279,7 +277,7 @@ export default function MapScreen(): React.JSX.Element {
           ? haversineKm(userLocation, item.location)
           : null;
       return (
-        <View style={{ marginHorizontal: 16, marginVertical: 6 }}>
+        <View style={styles.listItem}>
           <ChargerCard
             charger={item}
             owner={owner}
@@ -337,7 +335,7 @@ export default function MapScreen(): React.JSX.Element {
               ref={mapRef}
               chargers={visibleChargers}
               selectedId={selectedId}
-              onSelectCharger={handleSelectCharger}
+              onSelectCharger={handleOpenDetail}
               userLocation={userLocation}
             />
             <MapControls
@@ -354,7 +352,7 @@ export default function MapScreen(): React.JSX.Element {
               data={visibleChargers}
               keyExtractor={(c) => c.id}
               renderItem={renderItem}
-              contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}
+              contentContainerStyle={styles.listContent}
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Text
@@ -386,12 +384,7 @@ export default function MapScreen(): React.JSX.Element {
       <ChargerDetailSheet
         ref={detailSheetRef}
         onContact={handleContact}
-        onReview={(ownerId, chargerId) =>
-          router.push({
-            pathname: '/reviews/write',
-            params: { targetUserId: ownerId, chargerId },
-          })
-        }
+        onReview={handleReview}
       />
       <FiltersSheet
         ref={filtersSheetRef}
@@ -434,6 +427,14 @@ const styles = StyleSheet.create({
   empty: {
     paddingVertical: 64,
     paddingHorizontal: 24,
+  },
+  listItem: {
+    marginHorizontal: 16,
+    marginVertical: 6,
+  },
+  listContent: {
+    paddingVertical: 8,
+    paddingBottom: 32,
   },
 });
 

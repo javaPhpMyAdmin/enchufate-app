@@ -29,7 +29,7 @@ const statusToBadge: Record<
   busy: 'busy',
 };
 
-export function ChargerCard({
+export const ChargerCard = React.memo(function ChargerCard({
   charger,
   owner,
   distanceKm,
@@ -138,7 +138,7 @@ export function ChargerCard({
       </Card>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: {

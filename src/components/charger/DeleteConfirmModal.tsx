@@ -23,7 +23,7 @@ export interface DeleteConfirmModalProps {
   message?: string;
 }
 
-export function DeleteConfirmModal({
+export const DeleteConfirmModal = React.memo(function DeleteConfirmModal({
   visible,
   loading = false,
   onCancel,
@@ -78,7 +78,7 @@ export function DeleteConfirmModal({
       </View>
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   header: {

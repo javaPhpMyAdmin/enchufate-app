@@ -20,15 +20,11 @@
  *   an empty array rather than crashing.
  */
 import * as chargerService from '@/lib/chargerService';
+import { CHARGER_QUERY_KEY } from '@/lib/chargerService';
 import { queryClient } from '@/lib/queryClient';
+import { useMemo } from 'react';
 import type { Charger, ChargerStatus, ConnectorType, LatLng } from '@/data/types';
 import { useChargersQuery } from '@/hooks/useChargersQuery';
-
-// ---------------------------------------------------------------------------
-// Query key constant (must match useChargersQuery.ts)
-// ---------------------------------------------------------------------------
-
-const CHARGER_QUERY_KEY = ['chargers'] as const;
 
 // ---------------------------------------------------------------------------
 // Public API — imperative (non-React) interface
@@ -100,19 +96,7 @@ export const chargerStore = {
   },
 
   async update(id: string, patch: Partial<AddChargerInput>): Promise<Charger> {
-    const updated = await chargerService.updateCharger(id, {
-      ...(patch.title !== undefined ? { title: patch.title } : {}),
-      ...(patch.description !== undefined ? { description: patch.description } : {}),
-      ...(patch.type !== undefined ? { type: patch.type } : {}),
-      ...(patch.powerKw !== undefined ? { powerKw: patch.powerKw } : {}),
-      ...(patch.pricePerHour !== undefined ? { pricePerHour: patch.pricePerHour } : {}),
-      ...(patch.location !== undefined ? { location: patch.location } : {}),
-      ...(patch.address !== undefined ? { address: patch.address } : {}),
-      ...(patch.neighborhood !== undefined ? { neighborhood: patch.neighborhood } : {}),
-      ...(patch.city !== undefined ? { city: patch.city } : {}),
-      ...(patch.photos !== undefined ? { photos: patch.photos } : {}),
-      ...(patch.status !== undefined ? { status: patch.status } : {}),
-    });
+    const updated = await chargerService.updateCharger(id, patch);
     void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
     return updated;
   },
@@ -170,6 +154,8 @@ export function useChargers(): Charger[] {
 /** Subscribe to chargers owned by a specific user. */
 export function useMyChargers(ownerId: string | null | undefined): Charger[] {
   const all = useChargers();
-  if (!ownerId) return [];
-  return all.filter((c) => c.ownerId === ownerId);
+  return useMemo(
+    () => (ownerId ? all.filter((c) => c.ownerId === ownerId) : []),
+    [all, ownerId],
+  );
 }

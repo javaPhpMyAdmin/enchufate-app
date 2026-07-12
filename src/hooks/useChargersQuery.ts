@@ -11,10 +11,9 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import * as chargerService from '@/lib/chargerService';
+import { CHARGER_QUERY_KEY } from '@/lib/chargerService';
 import { queryClient } from '@/lib/queryClient';
 import type { Charger } from '@/data/types';
-
-const CHARGER_QUERY_KEY = ['chargers'] as const;
 
 /** Fetch all chargers. Shows loading state on first mount, stale-while-revalidate after. */
 export function useChargersQuery() {

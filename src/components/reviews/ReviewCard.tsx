@@ -6,6 +6,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui';
+import { formatRelativeTime } from '@/features/profile/helpers';
 import { formatRating } from '@/lib/format';
 import { useTheme } from '@/theme';
 
@@ -17,21 +18,6 @@ interface ReviewCardProps {
   rating: number;
   comment: string;
   createdAt: string;
-}
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return 'ahora';
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d`;
-  const months = Math.floor(days / 30);
-  return `${months}mes`;
 }
 
 export function ReviewCard({
@@ -73,7 +59,7 @@ export function ReviewCard({
                 { color: theme.colors.textLight, marginLeft: 8 },
               ]}
             >
-              {timeAgo(createdAt)}
+              {formatRelativeTime(createdAt)}
             </Text>
           </View>
         </View>
