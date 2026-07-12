@@ -88,7 +88,7 @@ export default function ProfileScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: async () => {
             await signOut();
-            router.replace('/(public)/welcome');
+            router.replace('/(tabs)');
           },
         },
       ],
