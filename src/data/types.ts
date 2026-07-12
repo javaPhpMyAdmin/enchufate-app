@@ -159,8 +159,8 @@ export const DEFAULT_FILTERS: ChargerFilters = {
 };
 
 export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
-  type1: 'Type 1',
-  type2: 'Type 2',
+  type1: 'Tipo 1',
+  type2: 'Tipo 2',
   ccs: 'CCS',
   chademo: 'CHAdeMO',
   tesla: 'Tesla',

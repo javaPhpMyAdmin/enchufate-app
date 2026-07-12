@@ -336,7 +336,7 @@ function DetailContent({
               ]}
               numberOfLines={1}
             >
-              {`${formatPrice(charger.pricePerHour)}/h`}
+              {formatPrice(charger.pricePerHour)}
             </Text>
           </View>
         </View>

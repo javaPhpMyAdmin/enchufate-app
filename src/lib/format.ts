@@ -59,7 +59,7 @@ export function formatCountdown(totalMinutes: number): string {
   return `${pad(mins)}:${pad(secs)}`;
 }
 
-/** "350 reviews" — pluralized review count. */
+/** "350 reseñas" — pluralized review count. */
 export function formatReviewCount(count: number): string {
-  return `${integerFormatter.format(count)} ${count === 1 ? 'review' : 'reviews'}`;
+  return `${integerFormatter.format(count)} ${count === 1 ? 'reseña' : 'reseñas'}`;
 }
