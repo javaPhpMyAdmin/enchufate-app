@@ -29,9 +29,9 @@ import {
 
 import { Card } from '@/components/ui';
 import {
-  DurationPickerSheet,
-  type DurationPickerSheetHandle,
-} from '@/components/sheets';
+  DurationPickerModal,
+  type DurationPickerModalHandle,
+} from '@/components/DurationPickerModal';
 import type { Charger } from '@/data/types';
 import { CONNECTOR_LABELS } from '@/data/types';
 import { formatCountdown, formatPower, formatPrice } from '@/lib/format';
@@ -60,7 +60,7 @@ export function OwnerChargerCard({
 }: OwnerChargerCardProps): React.JSX.Element {
   const theme = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const durationPickerRef = useRef<DurationPickerSheetHandle | null>(null);
+  const durationPickerRef = useRef<DurationPickerModalHandle | null>(null);
 
   const photo = charger.photos?.[0];
   const isBusy = charger.status === 'busy' && !charger.availableInMinutes;
@@ -226,8 +226,8 @@ export function OwnerChargerCard({
         ]}
       />
 
-      {/* Duration picker bottom sheet (shown when toggling to busy) */}
-      <DurationPickerSheet
+      {/* Duration picker modal (shown when toggling to busy) */}
+      <DurationPickerModal
         ref={durationPickerRef}
         onConfirm={handleDurationConfirm}
       />
