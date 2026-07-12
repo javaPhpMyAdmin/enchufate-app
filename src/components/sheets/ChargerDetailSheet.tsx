@@ -86,14 +86,21 @@ export const ChargerDetailSheet = forwardRef<
 
   const [charger, setCharger] = useState<Charger | null>(null);
   const [owner, setOwner] = useState<User | null>(null);
+  // Delay mounting BottomSheet until first show() — prevents the backdrop
+  // from flashing on screen mount (gorhom/bottom-sheet v5 renders on mount).
+  const [mounted, setMounted] = useState(false);
 
   useImperativeHandle(
     ref,
     () => ({
       show: (c, o) => {
+        setMounted(true);
         setCharger(c);
         setOwner(o);
-        sheetRef.current?.snapToIndex(0);
+        // Small delay to ensure BottomSheet is mounted before snapping.
+        requestAnimationFrame(() => {
+          sheetRef.current?.snapToIndex(0);
+        });
       },
       close: () => {
         sheetRef.current?.close();
@@ -136,6 +143,8 @@ export const ChargerDetailSheet = forwardRef<
     ),
     [],
   );
+
+  if (!mounted) return null;
 
   return (
     <BottomSheet
