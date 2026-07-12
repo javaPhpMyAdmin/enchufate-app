@@ -43,15 +43,15 @@ import {
 import {
   ProfileHeader,
   ProfileStats,
-  ReviewCard,
 } from '@/components/profile';
+import { ReviewCard } from '@/components/reviews';
 import { useAuth } from '@/features/auth';
 import { useChargers } from '@/data/chargerStore';
 import { messageStore } from '@/data/messageStore';
 import { mockUsers } from '@/data/mocks/users';
 import { getReviewsForUser } from '@/data/reviews';
 import type { Charger, User } from '@/data/types';
-import { isCurrentUser } from '@/features/profile';
+import { fullName, isCurrentUser } from '@/features/profile';
 import { useTheme } from '@/theme';
 
 export default function PublicProfileScreen(): React.JSX.Element {
@@ -287,7 +287,14 @@ export default function PublicProfileScreen(): React.JSX.Element {
                       mockUsers.find((u) => u.id === review.authorId) ?? null;
                     return (
                       <React.Fragment key={review.id}>
-                        <ReviewCard review={review} author={author} />
+                        <ReviewCard
+                          authorName={author ? fullName(author) : 'Usuario'}
+                          authorAvatar={author?.avatarUrl}
+                          rating={review.rating}
+                          text={review.comment}
+                          date={review.createdAt}
+                          variant="compact"
+                        />
                         {idx < reviews.length - 1 ? (
                           <Divider style={{ marginVertical: 4 }} />
                         ) : null}

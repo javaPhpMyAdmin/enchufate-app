@@ -1,2 +1,2 @@
 export { StarRating } from './StarRating';
-export { ReviewCard } from './ReviewCard';
+export { ReviewCard, type ReviewCardProps } from './ReviewCard';

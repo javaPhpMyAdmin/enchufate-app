@@ -52,8 +52,8 @@ export default function UserReviewsScreen(): React.JSX.Element {
                 authorName={item.authorName}
                 authorAvatar={item.authorAvatar}
                 rating={item.rating}
-                comment={item.comment}
-                createdAt={item.createdAt}
+                text={item.comment}
+                date={item.createdAt}
               />
             </View>
           )}

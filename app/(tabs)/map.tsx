@@ -34,24 +34,13 @@ import { useAuth } from '@/features/auth';
 import { fetchProfileById } from '@/features/auth/profileMapper';
 import { chargerStore } from '@/data/chargerStore';
 import { useChargersQuery } from '@/hooks/useChargersQuery';
+import { useProfileQuery } from '@/hooks/useProfileQuery';
 import { mockUsers } from '@/data/mocks/users';
 import { DEFAULT_FILTERS, type Charger, type ChargerFilters, type LatLng, type User } from '@/data/types';
 import { applyFilters } from '@/domain/charger';
 import { getUserById } from '@/domain/user';
 import { haversineKm } from '@/lib/distance';
 import { useTheme } from '@/theme';
-
-// ---------------------------------------------------------------------------
-// Profile cache — avoids re-fetching the same owner from Supabase.
-// ---------------------------------------------------------------------------
-const profileCache = new Map<string, User>();
-async function resolveOwner(ownerId: string): Promise<User> {
-  const cached = profileCache.get(ownerId);
-  if (cached) return cached;
-  const user = await fetchProfileById(ownerId);
-  profileCache.set(ownerId, user);
-  return user;
-}
 
 export default function MapScreen(): React.JSX.Element {
   const theme = useTheme();
@@ -148,22 +137,8 @@ export default function MapScreen(): React.JSX.Element {
       null;
   }, [selectedId, visibleChargers, allChargers]);
 
-  const [selectedOwner, setSelectedOwner] = useState<User | null>(null);
-
   // Resolve the real owner from Supabase when a charger is selected.
-  useEffect(() => {
-    if (!selectedCharger) {
-      setSelectedOwner(null);
-      return;
-    }
-    let cancelled = false;
-    void resolveOwner(selectedCharger.ownerId).then((u) => {
-      if (!cancelled) setSelectedOwner(u);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedCharger]);
+  const { data: selectedOwner } = useProfileQuery(selectedCharger?.ownerId);
 
   // Whenever a charger is selected (from the map marker OR from the list
   // card), open the bottom sheet for it. This is what makes the marker
@@ -180,7 +155,7 @@ export default function MapScreen(): React.JSX.Element {
       // Open the sheet directly — resolve the real owner from Supabase.
       const c = chargerStore.byId(id);
       if (c) {
-        void resolveOwner(c.ownerId).then((o) => {
+        void fetchProfileById(c.ownerId).then((o) => {
           detailSheetRef.current?.show(c, o);
         });
       }
@@ -246,48 +221,23 @@ export default function MapScreen(): React.JSX.Element {
     [router],
   );
 
-  // Pre-fetch real owner profiles for visible chargers.
-  const [ownerProfiles, setOwnerProfiles] = useState<Record<string, User>>({});
-  useEffect(() => {
-    const ownerIds = visibleChargers.map((c) => c.ownerId);
-    const uniqueIds = [...new Set(ownerIds)].filter((id) => !profileCache.get(id));
-    if (uniqueIds.length === 0) return;
-    let cancelled = false;
-    Promise.all(uniqueIds.map((id) => resolveOwner(id))).then((users) => {
-      if (cancelled) return;
-      setOwnerProfiles((prev) => {
-        const next = { ...prev };
-        for (const u of users) next[u.id] = u;
-        return next;
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [visibleChargers]);
-
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Charger>) => {
-      const owner =
-        ownerProfiles[item.ownerId] ??
-        profileCache.get(item.ownerId) ??
-        genericOwnerStub(item.ownerId);
       const distance =
         userLocation != null
           ? haversineKm(userLocation, item.location)
           : null;
       return (
         <View style={styles.listItem}>
-          <ChargerCard
+          <ChargerCardWithProfile
             charger={item}
-            owner={owner}
             distanceKm={distance}
             onPress={handleOpenDetail}
           />
         </View>
       );
     },
-    [ownerProfiles, userLocation, handleOpenDetail],
+    [userLocation, handleOpenDetail],
   );
 
   return (
@@ -437,6 +387,32 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
 });
+
+// ---------------------------------------------------------------------------
+// ChargerCard + profile fetch wrapper — each card in the FlatList uses this
+// so owner data is fetched lazily via TanStack Query (deduplication ensures
+// identical query keys only trigger one network request).
+// ---------------------------------------------------------------------------
+function ChargerCardWithProfile({
+  charger,
+  distanceKm,
+  onPress,
+}: {
+  charger: Charger;
+  distanceKm?: number | null;
+  onPress: (id: string) => void;
+}) {
+  const { data: owner } = useProfileQuery(charger.ownerId);
+  const resolvedOwner = owner ?? genericOwnerStub(charger.ownerId);
+  return (
+    <ChargerCard
+      charger={charger}
+      owner={resolvedOwner}
+      distanceKm={distanceKm}
+      onPress={onPress}
+    />
+  );
+}
 
 // Fallback user for owners that aren't in the seed list (e.g. chargers
 // created via the host flow). Generates a stable ui-avatars URL so the

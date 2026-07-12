@@ -9,4 +9,3 @@ export {
   type ProfileMenuItemVariant,
 } from './ProfileMenuItem';
 export { AvatarPicker, type AvatarPickerProps } from './AvatarPicker';
-export { ReviewCard, type ReviewCardProps } from './ReviewCard';

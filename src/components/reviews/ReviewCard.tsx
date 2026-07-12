@@ -1,6 +1,10 @@
 /**
  * ReviewCard — displays a single review with author avatar, name, stars,
  * comment, and relative time.
+ *
+ * Variants:
+ * - `full` (default): Avatar sm, meta row with stars + rating text + time, bottom border
+ * - `compact`: Avatar md, stars right-aligned in header, time below name, no border
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -12,29 +16,39 @@ import { useTheme } from '@/theme';
 
 import { StarRating } from './StarRating';
 
-interface ReviewCardProps {
+export interface ReviewCardProps {
   authorName: string;
   authorAvatar?: string | null;
   rating: number;
-  comment: string;
-  createdAt: string;
+  text?: string | null;
+  date: string;
+  /** 'full' = reviews list style; 'compact' = inline profile style */
+  variant?: 'full' | 'compact';
 }
 
 export function ReviewCard({
   authorName,
   authorAvatar,
   rating,
-  comment,
-  createdAt,
+  text,
+  date,
+  variant = 'full',
 }: ReviewCardProps): React.JSX.Element {
   const theme = useTheme();
+  const isCompact = variant === 'compact';
+
   return (
-    <View style={[styles.card, { borderBottomColor: theme.colors.border }]}>
+    <View
+      style={[
+        styles.card,
+        !isCompact && styles.cardBordered,
+      ]}
+    >
       <View style={styles.header}>
         <Avatar
           source={authorAvatar ?? undefined}
           name={authorName}
-          size="sm"
+          size={isCompact ? 'md' : 'sm'}
         />
         <View style={styles.headerText}>
           <Text
@@ -43,35 +57,49 @@ export function ReviewCard({
           >
             {authorName}
           </Text>
-          <View style={styles.metaRow}>
-            <StarRating value={rating} readonly size={12} />
+          {isCompact ? (
             <Text
               style={[
                 theme.typography.caption,
-                { color: theme.colors.textMuted, marginLeft: 6 },
+                { color: theme.colors.textMuted, marginTop: 2 },
               ]}
             >
-              {formatRating(rating)}
+              {formatRelativeTime(date)}
             </Text>
-            <Text
-              style={[
-                theme.typography.caption,
-                { color: theme.colors.textLight, marginLeft: 8 },
-              ]}
-            >
-              {formatRelativeTime(createdAt)}
-            </Text>
-          </View>
+          ) : (
+            <View style={styles.metaRow}>
+              <StarRating value={rating} readonly size={12} />
+              <Text
+                style={[
+                  theme.typography.caption,
+                  { color: theme.colors.textMuted, marginLeft: 6 },
+                ]}
+              >
+                {formatRating(rating)}
+              </Text>
+              <Text
+                style={[
+                  theme.typography.caption,
+                  { color: theme.colors.textLight, marginLeft: 8 },
+                ]}
+              >
+                {formatRelativeTime(date)}
+              </Text>
+            </View>
+          )}
         </View>
+        {isCompact && (
+          <StarRating value={rating} readonly size={14} />
+        )}
       </View>
-      {comment ? (
+      {text ? (
         <Text
           style={[
             theme.typography.body,
             { color: theme.colors.text, marginTop: 8 },
           ]}
         >
-          {comment}
+          {text}
         </Text>
       ) : null}
     </View>
@@ -81,6 +109,8 @@ export function ReviewCard({
 const styles = StyleSheet.create({
   card: {
     paddingVertical: 12,
+  },
+  cardBordered: {
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   header: {
