@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -15,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { ChargerCard } from '@/components/charger';
+import { AlertModal } from '@/components/ui';
 import {
   ChargerDetailSheet,
   type ChargerDetailSheetHandle,
@@ -67,6 +67,7 @@ export default function MapScreen(): React.JSX.Element {
   const [filters, setFilters] = useState<ChargerFilters>(DEFAULT_FILTERS);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [query, setQuery] = useState('');
+  const [loginAlertVisible, setLoginAlertVisible] = useState(false);
 
   // Auto-select a charger when navigated from profile (?select=<id>).
   useEffect(() => {
@@ -227,17 +228,7 @@ export default function MapScreen(): React.JSX.Element {
     (ownerId: string) => {
       const me = session?.user;
       if (!me) {
-        Alert.alert(
-          'Iniciá sesión',
-          'Necesitás iniciar sesión para contactar al anfitrión.',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Iniciar sesión',
-              onPress: () => router.push('/(public)/login'),
-            },
-          ],
-        );
+        setLoginAlertVisible(true);
         return;
       }
       if (me.id === ownerId) return; // can't message yourself
@@ -406,6 +397,15 @@ export default function MapScreen(): React.JSX.Element {
         ref={filtersSheetRef}
         onApply={handleApplyFilters}
         onReset={handleResetFilters}
+      />
+      <AlertModal
+        visible={loginAlertVisible}
+        onClose={() => setLoginAlertVisible(false)}
+        title="Iniciá sesión"
+        message="Necesitás iniciar sesión para contactar al anfitrión."
+        variant="confirm"
+        actionLabel="Iniciar sesión"
+        onAction={() => router.push('/(public)/login')}
       />
     </View>
   );

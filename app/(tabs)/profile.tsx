@@ -17,7 +17,6 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -37,12 +36,14 @@ import {
 } from 'lucide-react-native';
 
 import {
+  AlertModal,
   Avatar,
   Button,
   Card,
   CardBody,
   Divider,
   Screen,
+  type AlertModalVariant,
 } from '@/components/ui';
 import {
   DeleteConfirmModal,
@@ -63,6 +64,15 @@ export default function ProfileScreen(): React.JSX.Element {
   const router = useRouter();
   const { status, session, signOut } = useAuth();
 
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    variant: AlertModalVariant;
+    actionLabel?: string;
+    onAction?: () => void;
+  }>({ title: '', variant: 'info' });
+
   const handleLogin = useCallback((): void => {
     router.push('/(public)/login');
   }, [router]);
@@ -78,28 +88,26 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [router, session?.user.id]);
 
   const handleLogout = useCallback((): void => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Estás seguro que querés salir de tu cuenta?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/(tabs)');
-          },
-        },
-      ],
-    );
+    setAlertConfig({
+      title: 'Cerrar sesión',
+      message: '¿Estás seguro que querés salir de tu cuenta?',
+      variant: 'confirm',
+      actionLabel: 'Cerrar sesión',
+      onAction: async () => {
+        await signOut();
+        router.replace('/(tabs)');
+      },
+    });
+    setAlertVisible(true);
   }, [router, signOut]);
 
   const handleStub = useCallback((label: string) => {
-    Alert.alert(
-      'Próximamente',
-      `${label} llega en una próxima versión.`,
-    );
+    setAlertConfig({
+      title: 'Próximamente',
+      message: `${label} llega en una próxima versión.`,
+      variant: 'info',
+    });
+    setAlertVisible(true);
   }, []);
 
   // Unauthenticated: centered welcome + login CTA.
@@ -140,21 +148,41 @@ export default function ProfileScreen(): React.JSX.Element {
             />
           </View>
         </View>
+        <AlertModal
+          visible={alertVisible}
+          onClose={() => setAlertVisible(false)}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          variant={alertConfig.variant}
+          actionLabel={alertConfig.actionLabel}
+          onAction={alertConfig.onAction}
+        />
       </Screen>
     );
   }
 
   return (
-    <ProfileBody
-      userId={session.user.id}
-      isHost={session.user.isHost}
-      rating={session.user.rating}
-      reviewCount={session.user.reviewCount}
-      onEdit={handleEdit}
-      onViewPublic={handleViewPublicProfile}
-      onLogout={handleLogout}
-      onStubPress={handleStub}
-    />
+    <>
+      <ProfileBody
+        userId={session.user.id}
+        isHost={session.user.isHost}
+        rating={session.user.rating}
+        reviewCount={session.user.reviewCount}
+        onEdit={handleEdit}
+        onViewPublic={handleViewPublicProfile}
+        onLogout={handleLogout}
+        onStubPress={handleStub}
+      />
+      <AlertModal
+        visible={alertVisible}
+        onClose={() => setAlertVisible(false)}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        variant={alertConfig.variant}
+        actionLabel={alertConfig.actionLabel}
+        onAction={alertConfig.onAction}
+      />
+    </>
   );
 }
 
@@ -193,6 +221,12 @@ function ProfileBody({
   const chargers = useMyChargers(userId) ?? [];
   const [pendingDelete, setPendingDelete] = useState<Charger | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    variant: AlertModalVariant;
+  }>({ title: '', variant: 'info' });
 
   // The current user is always a "host" if they have at least one charger,
   // even if their account wasn't created with the isHost flag set.
@@ -231,7 +265,12 @@ function ProfileBody({
         await chargerStore.toggleBusy(id, durationMinutes);
       } catch (err) {
         console.warn('[profile] toggleBusy failed', err);
-        Alert.alert('Error', 'No pudimos cambiar el estado del cargador.');
+        setAlertConfig({
+          title: 'Error',
+          message: 'No pudimos cambiar el estado del cargador.',
+          variant: 'error',
+        });
+        setAlertVisible(true);
       }
     },
     [],
@@ -242,7 +281,12 @@ function ProfileBody({
       await chargerStore.setAvailable(id);
     } catch (err) {
       console.warn('[profile] setAvailable failed', err);
-      Alert.alert('Error', 'No pudimos cambiar el estado del cargador.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'No pudimos cambiar el estado del cargador.',
+        variant: 'error',
+      });
+      setAlertVisible(true);
     }
   }, []);
 
@@ -252,13 +296,20 @@ function ProfileBody({
     try {
       await chargerStore.remove(pendingDelete.id);
       setPendingDelete(null);
-      Alert.alert(
-        'Cargador eliminado',
-        'Tu cargador ya no está visible en el mapa.',
-      );
+      setAlertConfig({
+        title: 'Cargador eliminado',
+        message: 'Tu cargador ya no está visible en el mapa.',
+        variant: 'success',
+      });
+      setAlertVisible(true);
     } catch (err) {
       console.warn('[profile] delete failed', err);
-      Alert.alert('Error', 'No pudimos eliminar tu cargador. Probá de nuevo.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'No pudimos eliminar tu cargador. Probá de nuevo.',
+        variant: 'error',
+      });
+      setAlertVisible(true);
     } finally {
       setDeleting(false);
     }
@@ -444,6 +495,13 @@ function ProfileBody({
         loading={deleting}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => void handleConfirmDelete()}
+      />
+      <AlertModal
+        visible={alertVisible}
+        onClose={() => setAlertVisible(false)}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        variant={alertConfig.variant}
       />
     </Screen>
   );

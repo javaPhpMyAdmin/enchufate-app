@@ -8,7 +8,6 @@
  */
 import React, { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,7 +20,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StarRating } from '@/components/reviews/StarRating';
-import { Button } from '@/components/ui';
+import { AlertModal, Button, type AlertModalVariant } from '@/components/ui';
 import { useAuth } from '@/features/auth';
 import { useCreateReview } from '@/hooks/useReviewsQuery';
 import { useTheme } from '@/theme';
@@ -39,15 +38,31 @@ export default function WriteReviewScreen(): React.JSX.Element {
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    variant: AlertModalVariant;
+    onAction?: () => void;
+  }>({ title: '', variant: 'info' });
 
   const handleSubmit = async (): Promise<void> => {
     if (rating === 0) {
-      Alert.alert('Seleccioná una calificación', 'Tocá las estrellas para puntuar.');
+      setAlertConfig({
+        title: 'Seleccioná una calificación',
+        message: 'Tocá las estrellas para puntuar.',
+        variant: 'error',
+      });
+      setAlertVisible(true);
       return;
     }
     if (!session?.user) return;
     if (session.user.id === targetUserId) {
-      Alert.alert('No podés reseñarte a vos mismo');
+      setAlertConfig({
+        title: 'No podés reseñarte a vos mismo',
+        variant: 'error',
+      });
+      setAlertVisible(true);
       return;
     }
 
@@ -61,11 +76,20 @@ export default function WriteReviewScreen(): React.JSX.Element {
     });
 
     if (result) {
-      Alert.alert('¡Gracias!', 'Tu reseña fue publicada.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      setAlertConfig({
+        title: '¡Gracias!',
+        message: 'Tu reseña fue publicada.',
+        variant: 'success',
+        onAction: () => router.back(),
+      });
+      setAlertVisible(true);
     } else {
-      Alert.alert('Error', 'No se pudo publicar la reseña. Intentá de nuevo.');
+      setAlertConfig({
+        title: 'Error',
+        message: 'No se pudo publicar la reseña. Intentá de nuevo.',
+        variant: 'error',
+      });
+      setAlertVisible(true);
     }
   };
 
@@ -141,6 +165,16 @@ export default function WriteReviewScreen(): React.JSX.Element {
           style={{ marginTop: 24 }}
         />
       </ScrollView>
+      <AlertModal
+        visible={alertVisible}
+        onClose={() => {
+          setAlertVisible(false);
+          alertConfig.onAction?.();
+        }}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        variant={alertConfig.variant}
+      />
     </KeyboardAvoidingView>
   );
 }

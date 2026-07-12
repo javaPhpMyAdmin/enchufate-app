@@ -8,7 +8,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,7 +17,7 @@ import {
 } from 'react-native';
 
 import { PublishGateBanner, WizardFooter } from '@/components/publish';
-import { TextField } from '@/components/ui';
+import { AlertModal, TextField, type AlertModalVariant } from '@/components/ui';
 import { useAuth } from '@/features/auth';
 import {
   fullDraftSchema,
@@ -34,6 +33,12 @@ export default function Step7Screen(): React.JSX.Element {
   const { draft, update, reset, isStepValid, editingId } = usePublishDraft();
   const [rules, setRules] = useState<string>(draft.step7?.rules ?? '');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message?: string;
+    variant: AlertModalVariant;
+  }>({ title: '', variant: 'info' });
 
   useEffect(() => {
     update(7, { rules });
@@ -44,10 +49,12 @@ export default function Step7Screen(): React.JSX.Element {
 
   const handleSubmit = async (): Promise<void> => {
     if (!session) {
-      Alert.alert(
-        'Iniciá sesión',
-        'Necesitás iniciar sesión para publicar un cargador.',
-      );
+      setAlertConfig({
+        title: 'Iniciá sesión',
+        message: 'Necesitás iniciar sesión para publicar un cargador.',
+        variant: 'error',
+      });
+      setAlertVisible(true);
       router.replace('/(public)/login');
       return;
     }
@@ -104,7 +111,12 @@ export default function Step7Screen(): React.JSX.Element {
         err instanceof Error
           ? err.message
           : 'No pudimos publicar tu cargador. Probá de nuevo.';
-      Alert.alert('Error', message);
+      setAlertConfig({
+        title: 'Error',
+        message,
+        variant: 'error',
+      });
+      setAlertVisible(true);
     } finally {
       setSubmitting(false);
     }
@@ -185,6 +197,13 @@ export default function Step7Screen(): React.JSX.Element {
           nextLabel={nextLabel}
         />
       </View>
+      <AlertModal
+        visible={alertVisible}
+        onClose={() => setAlertVisible(false)}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        variant={alertConfig.variant}
+      />
     </KeyboardAvoidingView>
   );
 }

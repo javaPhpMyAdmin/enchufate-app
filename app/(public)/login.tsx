@@ -12,7 +12,7 @@
  * bookings or publish auth gate — is honored after a successful sign-in.
  */
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useController, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,7 +23,7 @@ import {
   PasswordInput,
   SocialAuthButtons,
 } from '@/components/auth';
-import { Button, Divider, TextField } from '@/components/ui';
+import { AlertModal, Button, Divider, TextField } from '@/components/ui';
 import {
   mapSupabaseError,
   useAuth,
@@ -42,6 +42,7 @@ export default function LoginScreen(): React.JSX.Element {
     : params.redirect;
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [forgotAlertVisible, setForgotAlertVisible] = useState(false);
 
   const { control, handleSubmit, formState } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -77,10 +78,7 @@ export default function LoginScreen(): React.JSX.Element {
   );
 
   const handleForgotPassword = useCallback((): void => {
-    Alert.alert(
-      'Próximamente',
-      'La recuperación de contraseña llega en una próxima versión.',
-    );
+    setForgotAlertVisible(true);
   }, []);
 
   const isSubmitDisabled = submitting || !formState.isValid;
@@ -189,6 +187,13 @@ export default function LoginScreen(): React.JSX.Element {
           </Pressable>
         </View>
       </ScrollView>
+      <AlertModal
+        visible={forgotAlertVisible}
+        onClose={() => setForgotAlertVisible(false)}
+        title="Próximamente"
+        message="La recuperación de contraseña llega en una próxima versión."
+        variant="info"
+      />
     </View>
   );
 }
