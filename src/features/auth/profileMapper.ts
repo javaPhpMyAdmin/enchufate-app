@@ -90,17 +90,19 @@ function synthesizeFromSession(supaSession: Session): User {
   const user = supaSession.user;
   const meta = (user.user_metadata ?? {}) as {
     display_name?: string;
+    name?: string;
     surname?: string;
     avatar_url?: string;
+    picture?: string;
   };
-  const name = meta.display_name ?? user.email?.split('@')[0] ?? 'Conductor';
+  const name = meta.name ?? meta.display_name ?? user.email?.split('@')[0] ?? 'Conductor';
   const surname = meta.surname ?? '';
   return {
     id: user.id,
     name,
     surname,
     email: user.email ?? '',
-    avatarUrl: meta.avatar_url ?? buildAvatarUrl(name, surname),
+    avatarUrl: meta.avatar_url ?? meta.picture ?? buildAvatarUrl(name, surname),
     rating: 0,
     reviewCount: 0,
     isOnline: true,
