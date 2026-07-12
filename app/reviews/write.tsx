@@ -46,6 +46,10 @@ export default function WriteReviewScreen(): React.JSX.Element {
       return;
     }
     if (!session?.user) return;
+    if (session.user.id === targetUserId) {
+      Alert.alert('No podés reseñarte a vos mismo');
+      return;
+    }
 
     const result = await createReview.mutateAsync({
       authorId: session.user.id,
