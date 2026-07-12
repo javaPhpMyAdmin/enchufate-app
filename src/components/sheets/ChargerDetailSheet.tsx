@@ -391,15 +391,15 @@ function DetailContent({
               { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <MessageCircle color={theme.colors.text} size={18} />
-            <Text
-              style={[
-                theme.typography.smallBold,
-                { color: theme.colors.text, marginLeft: 8 },
-              ]}
-            >
-              Contactar
-            </Text>
+          <MessageCircle color={theme.colors.text} size={16} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.text, marginLeft: 6 },
+            ]}
+          >
+            Contactar
+          </Text>
           </Pressable>
           {onReview ? (
             <Pressable
@@ -419,11 +419,11 @@ function DetailContent({
                 { opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              <Star color={theme.colors.warning} size={18} />
+              <Star color={theme.colors.warning} size={16} />
               <Text
                 style={[
                   theme.typography.smallBold,
-                  { color: theme.colors.text, marginLeft: 8 },
+                  { color: theme.colors.text, marginLeft: 6 },
                 ]}
               >
                 Reseña
@@ -440,11 +440,11 @@ function DetailContent({
               { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Navigation color={theme.colors.textOnPrimary} size={18} />
+            <Navigation color={theme.colors.textOnPrimary} size={16} />
             <Text
               style={[
                 theme.typography.smallBold,
-                { color: theme.colors.textOnPrimary, marginLeft: 8 },
+                { color: theme.colors.textOnPrimary, marginLeft: 6 },
               ]}
             >
               Cómo llegar
@@ -561,14 +561,15 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 1,
   },
