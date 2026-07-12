@@ -273,7 +273,7 @@ function DetailContent({
       {/* Specs: POTENCIA | CONECTOR | PRECIO */}
       <View style={styles.specsRow}>
         <View style={styles.spec}>
-          <Zap color={theme.colors.text} size={20} />
+          <Zap color={theme.colors.text} size={16} />
           <View style={styles.specText}>
             <Text
               style={[
@@ -285,9 +285,10 @@ function DetailContent({
             </Text>
             <Text
               style={[
-                theme.typography.h3,
+                theme.typography.bodyBold,
                 { color: theme.colors.text, marginTop: 2 },
               ]}
+              numberOfLines={1}
             >
               {formatPower(charger.powerKw)}
             </Text>
@@ -295,7 +296,7 @@ function DetailContent({
         </View>
         <View style={styles.specDivider} />
         <View style={styles.spec}>
-          <Zap color={theme.colors.text} size={20} />
+          <Zap color={theme.colors.text} size={16} />
           <View style={styles.specText}>
             <Text
               style={[
@@ -307,9 +308,10 @@ function DetailContent({
             </Text>
             <Text
               style={[
-                theme.typography.h3,
+                theme.typography.bodyBold,
                 { color: theme.colors.text, marginTop: 2 },
               ]}
+              numberOfLines={1}
             >
               {CONNECTOR_LABELS[charger.type]}
             </Text>
@@ -317,7 +319,7 @@ function DetailContent({
         </View>
         <View style={styles.specDivider} />
         <View style={styles.spec}>
-          <Banknote color={theme.colors.text} size={20} />
+          <Banknote color={theme.colors.text} size={16} />
           <View style={styles.specText}>
             <Text
               style={[
@@ -329,9 +331,10 @@ function DetailContent({
             </Text>
             <Text
               style={[
-                theme.typography.h3,
+                theme.typography.bodyBold,
                 { color: theme.colors.text, marginTop: 2 },
               ]}
+              numberOfLines={1}
             >
               {`${formatPrice(charger.pricePerHour)}/h`}
             </Text>
@@ -540,7 +543,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
   specText: {
     flex: 1,
@@ -548,7 +551,7 @@ const styles = StyleSheet.create({
   specDivider: {
     width: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.08)',
-    marginHorizontal: 16,
+    marginHorizontal: 10,
   },
   countdownBox: {
     marginTop: 14,
