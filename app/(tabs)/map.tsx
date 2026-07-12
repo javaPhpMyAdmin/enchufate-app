@@ -12,7 +12,7 @@ import {
 import { Search, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { ChargerCard } from '@/components/charger';
 import {
@@ -56,6 +56,7 @@ async function resolveOwner(ownerId: string): Promise<User> {
 export default function MapScreen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
+  const { select: selectChargerId } = useLocalSearchParams<{ select?: string }>();
   const { session } = useAuth();
   const mapRef = useRef<ChargerMapHandle | null>(null);
   const detailSheetRef = useRef<ChargerDetailSheetHandle | null>(null);
@@ -66,6 +67,13 @@ export default function MapScreen(): React.JSX.Element {
   const [filters, setFilters] = useState<ChargerFilters>(DEFAULT_FILTERS);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [query, setQuery] = useState('');
+
+  // Auto-select a charger when navigated from profile (?select=<id>).
+  useEffect(() => {
+    if (selectChargerId) {
+      handleSelectCharger(selectChargerId);
+    }
+  }, [selectChargerId]);
 
   // Request location permission once on mount.
   useEffect(() => {

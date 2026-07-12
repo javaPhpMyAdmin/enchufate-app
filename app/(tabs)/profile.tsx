@@ -15,7 +15,7 @@
  * once Phase 9 wires up real notification settings, payment methods, etc.
  */
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -49,18 +49,13 @@ import {
   OwnerChargerCard,
 } from '@/components/charger';
 import {
-  ChargerDetailSheet,
-  type ChargerDetailSheetHandle,
-} from '@/components/sheets';
-import {
   ProfileHeader,
   ProfileMenuItem,
   ProfileStats,
 } from '@/components/profile';
 import { useAuth } from '@/features/auth';
 import { chargerStore, useMyChargers } from '@/data/chargerStore';
-import { mockUsers } from '@/data/mocks/users';
-import type { Charger, User } from '@/data/types';
+import type { Charger } from '@/data/types';
 import { useTheme } from '@/theme';
 
 export default function ProfileScreen(): React.JSX.Element {
@@ -196,7 +191,6 @@ function ProfileBody({
   const router = useRouter();
   const { session } = useAuth();
   const chargers = useMyChargers(userId) ?? [];
-  const detailSheetRef = useRef<ChargerDetailSheetHandle | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Charger | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
 
@@ -207,39 +201,16 @@ function ProfileBody({
     [isHost, chargers.length],
   );
 
-  // Build a `User` record for the detail sheet. The host's signed-in
-  // session supplies a fallback so newly published chargers (no entry
-  // in the seed) still render correctly.
-  const selfUser: User | null = useMemo(() => {
-    if (!session) return null;
-    const u = session.user;
-    return {
-      ...u,
-      isHost: true,
-      rating: u.rating || 5,
-    };
-  }, [session]);
-
-  // The flat `User` index lets us resolve seed owners quickly.
-  const userIndex = useMemo<Record<string, User>>(() => {
-    const map: Record<string, User> = {};
-    for (const u of mockUsers) map[u.id] = u;
-    return map;
-  }, []);
-
   const handlePublish = useCallback((): void => {
     router.push('/publish');
   }, [router]);
 
+  // Tap a charger card → navigate to map with that charger selected.
   const handleOpenDetail = useCallback(
     (id: string) => {
-      const c = chargerStore.byId(id);
-      if (!c) return;
-      const owner = userIndex[c.ownerId] ?? selfUser;
-      if (!owner) return;
-      detailSheetRef.current?.show(c, owner);
+      router.push({ pathname: '/(tabs)/map', params: { select: id } });
     },
-    [userIndex, selfUser],
+    [router],
   );
 
   const handleEditCharger = useCallback(
@@ -468,16 +439,6 @@ function ProfileBody({
         />
       </View>
 
-      <ChargerDetailSheet
-        ref={detailSheetRef}
-        onContact={(ownerId) => console.log('[profile] contactar', ownerId)}
-        onReview={(ownerId, chargerId) =>
-          router.push({
-            pathname: '/reviews/write',
-            params: { targetUserId: ownerId, chargerId },
-          })
-        }
-      />
       <DeleteConfirmModal
         visible={!!pendingDelete}
         loading={deleting}
