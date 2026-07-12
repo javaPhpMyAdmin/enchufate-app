@@ -50,6 +50,9 @@ import BottomSheet, {
 import { Avatar, Divider } from '@/components/ui';
 import type { Charger, ChargerStatus, User } from '@/data/types';
 import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
+import { useAuth } from '@/features/auth';
+import { useReviewsForUser } from '@/hooks/useReviewsQuery';
+import { useCountdownTimer } from '@/hooks/useCountdownTimer';
 import {
   formatCountdown,
   formatPower,
@@ -57,8 +60,6 @@ import {
   formatRating,
   formatReviewCount,
 } from '@/lib/format';
-import { useCountdownTimer } from '@/hooks/useCountdownTimer';
-import { useReviewsForUser } from '@/hooks/useReviewsQuery';
 import { useTheme } from '@/theme';
 
 export interface ChargerDetailSheetHandle {
@@ -190,6 +191,9 @@ function DetailContent({
   onClose,
 }: DetailContentProps): React.JSX.Element {
   const theme = useTheme();
+  const { session } = useAuth();
+  const currentUserId = session?.user?.id;
+  const isOwnCharger = currentUserId === owner.id;
   const { data: ownerReviews } = useReviewsForUser(owner.id);
 
   const hasReviews = owner.reviewCount > 0;
@@ -354,30 +358,32 @@ function DetailContent({
 
       {/* Actions — Contactar | Reseña | Cómo llegar */}
       <View style={styles.actions}>
-        <Pressable
-          onPress={() => {
-            onContact(owner.id);
-            onClose();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Contactar al anfitrión"
-          style={({ pressed }) => [
-            styles.actionButton,
-            styles.actionButtonSecondary,
-            { opacity: pressed ? 0.85 : 1 },
-          ]}
-        >
-          <MessageCircle color={theme.colors.text} size={18} />
-          <Text
-            style={[
-              theme.typography.smallBold,
-              { color: theme.colors.text, marginLeft: 8 },
+        {!isOwnCharger ? (
+          <Pressable
+            onPress={() => {
+              onContact(owner.id);
+              onClose();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Contactar al anfitrión"
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionButtonSecondary,
+              { opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            Contactar
-          </Text>
-        </Pressable>
-        {onReview ? (
+            <MessageCircle color={theme.colors.text} size={18} />
+            <Text
+              style={[
+                theme.typography.smallBold,
+                { color: theme.colors.text, marginLeft: 8 },
+              ]}
+            >
+              Contactar
+            </Text>
+          </Pressable>
+        ) : null}
+        {onReview && !isOwnCharger ? (
           <Pressable
             onPress={() => {
               onReview(owner.id, charger.id);
