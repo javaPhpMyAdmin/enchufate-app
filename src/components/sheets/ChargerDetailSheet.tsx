@@ -193,7 +193,9 @@ function DetailContent({
   const theme = useTheme();
   const { session } = useAuth();
   const currentUserId = session?.user?.id;
+  const isLoggedIn = !!currentUserId;
   const isOwnCharger = currentUserId === owner.id;
+  const canInteract = isLoggedIn && !isOwnCharger;
   const { data: ownerReviews } = useReviewsForUser(owner.id);
 
   const hasReviews = owner.reviewCount > 0;
@@ -358,7 +360,7 @@ function DetailContent({
 
       {/* Actions — Contactar | Reseña | Cómo llegar */}
       <View style={styles.actions}>
-        {!isOwnCharger ? (
+        {canInteract ? (
           <Pressable
             onPress={() => {
               onContact(owner.id);
@@ -383,7 +385,7 @@ function DetailContent({
             </Text>
           </Pressable>
         ) : null}
-        {onReview && !isOwnCharger ? (
+        {canInteract && onReview ? (
           <Pressable
             onPress={() => {
               onReview(owner.id, charger.id);
