@@ -82,6 +82,7 @@ begin
   values (
     new.id,
     coalesce(
+      new.raw_user_meta_data->>'given_name',
       new.raw_user_meta_data->>'name',
       new.raw_user_meta_data->>'display_name',
       split_part(coalesce(new.email, ''), '@', 1)

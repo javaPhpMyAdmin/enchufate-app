@@ -91,11 +91,12 @@ function synthesizeFromSession(supaSession: Session): User {
   const meta = (user.user_metadata ?? {}) as {
     display_name?: string;
     name?: string;
+    given_name?: string;
     surname?: string;
     avatar_url?: string;
     picture?: string;
   };
-  const name = meta.name ?? meta.display_name ?? user.email?.split('@')[0] ?? 'Conductor';
+  const name = meta.given_name ?? meta.name ?? meta.display_name ?? user.email?.split('@')[0] ?? 'Conductor';
   const surname = meta.surname ?? '';
   return {
     id: user.id,
