@@ -151,11 +151,16 @@ export function useChargers(): Charger[] {
   return data ?? [];
 }
 
-/** Subscribe to chargers owned by a specific user. */
-export function useMyChargers(ownerId: string | null | undefined): Charger[] {
+/** Subscribe to chargers owned by a specific user. Returns chargers and loading state. */
+export function useMyChargers(ownerId: string | null | undefined): {
+  chargers: Charger[];
+  isLoading: boolean;
+} {
   const all = useChargers();
-  return useMemo(
+  const { isLoading } = useChargersQuery();
+  const filtered = useMemo(
     () => (ownerId ? all.filter((c) => c.ownerId === ownerId) : []),
     [all, ownerId],
   );
+  return { chargers: filtered, isLoading };
 }

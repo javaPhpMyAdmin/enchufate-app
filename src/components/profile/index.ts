@@ -3,6 +3,7 @@
  */
 export { ProfileHeader, type ProfileHeaderProps } from './ProfileHeader';
 export { ProfileStats, type ProfileStatsProps } from './ProfileStats';
+export { ProfileSkeleton } from './ProfileSkeleton';
 export {
   ProfileMenuItem,
   type ProfileMenuItemProps,

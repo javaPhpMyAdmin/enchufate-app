@@ -52,6 +52,7 @@ import {
 import {
   ProfileHeader,
   ProfileMenuItem,
+  ProfileSkeleton,
   ProfileStats,
 } from '@/components/profile';
 import { useAuth } from '@/features/auth';
@@ -218,7 +219,7 @@ function ProfileBody({
   const theme = useTheme();
   const router = useRouter();
   const { session } = useAuth();
-  const chargers = useMyChargers(userId) ?? [];
+  const { chargers, isLoading } = useMyChargers(userId);
   const [pendingDelete, setPendingDelete] = useState<Charger | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -227,6 +228,11 @@ function ProfileBody({
     message?: string;
     variant: AlertModalVariant;
   }>({ title: '', variant: 'info' });
+
+  // Show skeleton while chargers are loading
+  if (isLoading && chargers.length === 0) {
+    return <ProfileSkeleton />;
+  }
 
   // The current user is always a "host" if they have at least one charger,
   // even if their account wasn't created with the isHost flag set.
