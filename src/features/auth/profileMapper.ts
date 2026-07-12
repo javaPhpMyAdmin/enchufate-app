@@ -145,12 +145,13 @@ export async function fetchProfileById(userId: string): Promise<User> {
 
   if (error || !data) {
     console.warn('[profileMapper] fetchProfileById failed', error?.message);
+    const fallbackName = userId.slice(0, 8);
     return {
       id: userId,
-      name: 'Anfitrión',
+      name: fallbackName,
       surname: '',
       email: '',
-      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=00C896&color=fff&size=200&bold=true&format=png`,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=00C896&color=fff&size=200&bold=true&format=png`,
       rating: 0,
       reviewCount: 0,
       isOnline: false,

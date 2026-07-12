@@ -436,12 +436,13 @@ const fallbackCache: Record<string, User> = {};
 function genericOwnerStub(ownerId: string): User {
   const cached = fallbackCache[ownerId];
   if (cached) return cached;
+  const shortId = ownerId.slice(0, 8);
   const url = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    ownerId,
+    shortId,
   )}&background=00C896&color=fff&size=200&bold=true&format=png`;
   const u: User = {
     id: ownerId,
-    name: 'Anfitrión',
+    name: shortId,
     surname: '',
     email: '',
     avatarUrl: url,
