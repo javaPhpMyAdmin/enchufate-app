@@ -1,6 +1,5 @@
 import React, {
   forwardRef,
-  useCallback,
   useImperativeHandle,
   useRef,
 } from 'react';
@@ -11,7 +10,6 @@ import MapView, {
   PROVIDER_GOOGLE,
   type Region,
 } from 'react-native-maps';
-import ClusteredMapView from 'react-native-map-clustering';
 
 import type { Charger, LatLng } from '@/data/types';
 import { useTheme } from '@/theme';
@@ -50,17 +48,13 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
     ref,
   ) {
     const theme = useTheme();
-    const underlyingMapRef = useRef<MapView | null>(null);
-
-    const captureMapRef = useCallback((map: any) => {
-      underlyingMapRef.current = map as MapView;
-    }, []);
+    const mapRef = useRef<MapView | null>(null);
 
     useImperativeHandle(
       ref,
       () => ({
         animateTo: (coords, zoomDelta) => {
-          underlyingMapRef.current?.animateCamera(
+          mapRef.current?.animateCamera(
             {
               center: coords,
               zoom: zoomDelta !== undefined ? 15 + zoomDelta : undefined,
@@ -74,7 +68,7 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
           if (userLoc) coords.push(userLoc);
           if (coords.length === 1) {
             const only = coords[0]!;
-            underlyingMapRef.current?.animateCamera(
+            mapRef.current?.animateCamera(
               {
                 center: only,
                 zoom: 14,
@@ -83,7 +77,7 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
             );
             return;
           }
-          underlyingMapRef.current?.fitToCoordinates(coords, {
+            mapRef.current?.fitToCoordinates(coords, {
             edgePadding: { top: 80, right: 80, bottom: 240, left: 80 },
             animated: true,
           });
@@ -99,8 +93,8 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
           { backgroundColor: theme.colors.surfaceAlt },
         ]}
       >
-        <ClusteredMapView
-          ref={captureMapRef}
+        <MapView
+          ref={mapRef}
           provider={PROVIDER}
           style={styles.map}
           initialRegion={initialRegion ?? DEFAULT_REGION}
@@ -111,11 +105,6 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
           loadingEnabled
           loadingBackgroundColor={theme.colors.surface}
           loadingIndicatorColor={theme.colors.primary}
-          radius={50}
-          minZoom={1}
-          maxZoom={20}
-          clusterColor={theme.colors.primary}
-          clusterTextColor="#FFFFFF"
         >
           {chargers.map((c) => (
             <Marker
@@ -128,7 +117,7 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
               zIndex={selectedId === c.id ? 99 : 1}
             />
           ))}
-        </ClusteredMapView>
+        </MapView>
       </View>
     );
   },

@@ -108,7 +108,10 @@ export async function fetchAllChargers(): Promise<Charger[]> {
     return [];
   }
 
-  return (data as ChargerRow[]).map(rowToCharger);
+  console.log('[chargerService] fetchAllChargers OK:', data.length, 'chargers');
+  const mapped = (data as ChargerRow[]).map(rowToCharger);
+  console.log('[chargerService] first charger:', JSON.stringify(mapped[0], null, 2));
+  return mapped;
 }
 
 /** Insert a new charger via RPC (avoids PostGIS GeoJSON serialization). */
