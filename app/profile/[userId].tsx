@@ -164,7 +164,7 @@ export default function PublicProfileScreen(): React.JSX.Element {
         contentStyle={styles.scroll}
         footer={
           user.isHost && !isSelf ? (
-            <View style={styles.footer}>
+            <View style={[styles.footer, { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border }]}>
               <Button
                 label="Contactar"
                 variant="primary"
@@ -227,7 +227,7 @@ export default function PublicProfileScreen(): React.JSX.Element {
 
         {user.isHost ? (
           <>
-            <Text style={[theme.typography.h3, styles.sectionTitle]}>
+            <Text style={[theme.typography.h3, styles.sectionTitle, { color: theme.colors.text }]}>
               Cargadores
             </Text>
             {chargers.length === 0 ? (
@@ -262,7 +262,7 @@ export default function PublicProfileScreen(): React.JSX.Element {
               </View>
             )}
 
-            <Text style={[theme.typography.h3, styles.sectionTitle]}>
+            <Text style={[theme.typography.h3, styles.sectionTitle, { color: theme.colors.text }]}>
               Reseñas
             </Text>
             {reviews.length === 0 ? (
@@ -356,7 +356,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    color: theme.colors.text,
     marginTop: 4,
   },
   chargerList: {
@@ -374,8 +373,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    backgroundColor: theme.colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.border,
   },
 });

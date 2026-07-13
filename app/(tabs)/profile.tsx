@@ -422,7 +422,7 @@ function ProfileBody({
         />
       </View>
 
-      <Text style={[theme.typography.h3, styles.sectionTitle]}>
+      <Text style={[theme.typography.h3, styles.sectionTitle, { color: theme.colors.text }]}>
         Preferencias
       </Text>
       <Card variant="elevated" padded={false}>
@@ -467,7 +467,7 @@ function ProfileBody({
           fullWidth
           leftIcon={<LogOut color={theme.colors.danger} size={18} />}
           onPress={onLogout}
-          style={styles.logoutButton}
+          style={[styles.logoutButton, { backgroundColor: theme.colors.dangerSurface, borderColor: theme.colors.dangerBorder }]}
         />
       </View>
 
@@ -510,15 +510,13 @@ const styles = StyleSheet.create({
   },
   viewPublic: {},
   sectionTitle: {
-    color: theme.colors.text,
     marginTop: 4,
   },
   logoutWrap: {
     marginTop: 8,
   },
   logoutButton: {
-    backgroundColor: theme.colors.dangerSurface,
-    borderColor: theme.colors.dangerBorder,
+    borderWidth: 1,
   },
   chargersSection: {},
   chargersHeaderRow: {

@@ -156,14 +156,14 @@ export default function EditProfileScreen(): React.JSX.Element {
         </View>
 
         <View style={styles.pickerWrap}>
-          <Text style={[theme.typography.smallBold, styles.section]}>
+          <Text style={[theme.typography.smallBold, styles.section, { color: theme.colors.text }]}>
             Elegí tu avatar
           </Text>
           <AvatarPicker value={watchedAvatar} onChange={handleAvatarChange} />
         </View>
 
         <View style={styles.fields}>
-          <Text style={[theme.typography.smallBold, styles.section]}>
+          <Text style={[theme.typography.smallBold, styles.section, { color: theme.colors.text }]}>
             Datos personales
           </Text>
           <TextField
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   section: {
-    color: theme.colors.text,
+    // color moved to inline — theme not available at StyleSheet.create time
   },
   fields: {
     gap: 14,

@@ -397,7 +397,7 @@ function DetailContent({
             style={({ pressed }) => [
               styles.actionButton,
               styles.actionButtonSecondary,
-              { opacity: pressed ? 0.85 : 1 },
+              { backgroundColor: theme.colors.background, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
             ]}
           >
           <MessageCircle color={theme.colors.text} size={16} />
@@ -425,7 +425,7 @@ function DetailContent({
               style={({ pressed }) => [
                 styles.actionButton,
                 styles.actionButtonSecondary,
-                { opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: theme.colors.background, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
               ]}
             >
               <Star color={theme.colors.warning} size={16} />
@@ -446,7 +446,7 @@ function DetailContent({
             style={({ pressed }) => [
               styles.actionButton,
               styles.actionButtonPrimary,
-              { opacity: pressed ? 0.85 : 1 },
+              { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
             ]}
           >
             <Navigation color={theme.colors.textOnPrimary} size={16} />
@@ -583,11 +583,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionButtonSecondary: {
-    backgroundColor: theme.colors.background,
-    borderColor: theme.colors.border,
+    borderWidth: 1,
   },
   actionButtonPrimary: {
-    backgroundColor: theme.colors.primary,
     borderColor: 'transparent',
   },
 });
