@@ -46,9 +46,8 @@ import {
   shouldShowTimestamp,
 } from '@/features/messages';
 import { messageStore, useConversationById, useMessagesByConversation } from '@/data/messageStore';
-import { mockUsers } from '@/data/mocks/users';
 import type { Message, User } from '@/data/types';
-import { getUserById } from '@/domain/user';
+import { useProfileQuery } from '@/hooks/useProfileQuery';
 import { useTheme } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
 
@@ -68,21 +67,24 @@ export default function ChatScreen(): React.JSX.Element {
 
   const { messages } = useMessagesByConversation(conversation?.id ?? null);
 
-  // Identify the other participant. We look in the mock users first
-  // (most of the time the other is a known host); if not found we
-  // synthesize a generic stub from the session info, which can
-  // happen when the current user messages themselves in tests.
-  const other: User | null = useMemo<User | null>(() => {
-    if (!conversation || !me) return null;
+  // --- Other participant ---
+  const otherUserId = useMemo<string | undefined>(() => {
+    if (!conversation || !me) return undefined;
     const otherId = getOtherParticipant(conversation, me);
-    if (!otherId) return null;
-    if (otherId === me.id) {
-      // Self-conversation: surface the current user as a stub so the
-      // header still renders.
-      return me;
-    }
-    return getUserById(mockUsers, otherId) ?? genericUser(otherId);
+    return otherId && otherId !== me.id ? otherId : undefined;
   }, [conversation, me]);
+
+  const { data: profileData, isLoading: isProfileLoading } =
+    useProfileQuery(otherUserId);
+
+  const other: User | null = useMemo<User | null>(() => {
+    if (profileData) return profileData;
+    if (conversation && me) {
+      const otherId = getOtherParticipant(conversation, me);
+      if (otherId === me.id) return me;
+    }
+    return null;
+  }, [profileData, conversation, me]);
 
   // Composer state — the chat input is fully controlled.
   const [draft, setDraft] = useState<string>('');
@@ -96,7 +98,11 @@ export default function ChatScreen(): React.JSX.Element {
     if (!conversation || !me) return;
     if (markedAsReadRef.current.has(conversation.id)) return;
     markedAsReadRef.current.add(conversation.id);
-    void messageStore.markAsRead(conversation.id, me.id);
+    void messageStore.markAsRead(conversation.id, me.id).then(() => {
+      // Invalidate so the conversations list and unread badge refresh.
+      void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });
+      void queryClient.invalidateQueries({ queryKey: ['unread', me.id] });
+    });
   }, [conversation, me, messages.length]);
 
   // Auto-scroll to bottom on new messages. We use a ref + content
@@ -204,6 +210,18 @@ export default function ChatScreen(): React.JSX.Element {
       </SafeAreaView>
     );
   }
+  // Show skeleton while profile is loading (instead of generic "Conductor").
+  if (isProfileLoading && !other) {
+    return (
+      <SafeAreaView
+        style={[styles.flex, { backgroundColor: theme.colors.background }]}
+        edges={['top', 'bottom']}
+      >
+        <ChatSkeleton />
+      </SafeAreaView>
+    );
+  }
+
   if (!conversation || !me || !other) {
     return (
       <SafeAreaView
@@ -253,9 +271,6 @@ export default function ChatScreen(): React.JSX.Element {
     </SafeAreaView>
   );
 }
-
-// Generic stub for unknown user ids.
-import { genericUser } from '@/data/userStub';
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

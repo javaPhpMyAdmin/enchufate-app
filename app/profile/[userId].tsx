@@ -48,10 +48,11 @@ import { ReviewCard } from '@/components/reviews';
 import { useAuth } from '@/features/auth';
 import { useChargers } from '@/data/chargerStore';
 import { messageStore } from '@/data/messageStore';
-import { mockUsers } from '@/data/mocks/users';
 import { getReviewsForUser } from '@/data/reviews';
-import type { Charger, User } from '@/data/types';
+import type { Charger, Review, User } from '@/data/types';
+import { useProfileQuery } from '@/hooks/useProfileQuery';
 import { fullName, isCurrentUser } from '@/features/profile';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/theme';
 
 export default function PublicProfileScreen(): React.JSX.Element {
@@ -63,14 +64,12 @@ export default function PublicProfileScreen(): React.JSX.Element {
 
   const { session } = useAuth();
 
-  // Look up the user from the seed (and from the auth session, so the
-  // user can see their own freshly-edited public profile even if their
-  // id isn't in the seed).
-  const user: User | null = useMemo(() => {
-    if (!userId) return null;
-    if (session?.user.id === userId) return session.user;
-    return mockUsers.find((u) => u.id === userId) ?? null;
-  }, [userId, session?.user]);
+  // Resolve the user: self from session, others from Supabase.
+  const isSelf = userId != null && session?.user.id === userId;
+  const { data: profileUser } = useProfileQuery(
+    isSelf ? undefined : userId ?? undefined,
+  );
+  const user: User | null = isSelf ? (session?.user ?? null) : (profileUser ?? null);
 
   // Subscribe to the store so the chargers list reflects any new
   // publications by this host (covers hosts added via Phase 3 publish).
@@ -80,12 +79,13 @@ export default function PublicProfileScreen(): React.JSX.Element {
     return chargersAll.filter((c) => c.ownerId === userId);
   }, [chargersAll, userId]);
 
-  const reviews = useMemo(() => {
-    if (!userId) return [];
-    return getReviewsForUser(userId, 3);
-  }, [userId]);
-
-  const isSelf = isCurrentUser(user, session?.user ?? null);
+  // Fetch reviews from Supabase (async).
+  const { data: reviews = [] } = useQuery<Review[]>({
+    queryKey: ['reviews', userId],
+    queryFn: () => getReviewsForUser(userId!, 3),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
 
   // Phase 5 (T-21): "Contactar" finds-or-creates a conversation with
   // the public user and navigates to the chat screen. No-op if the
@@ -279,25 +279,14 @@ export default function PublicProfileScreen(): React.JSX.Element {
             ) : (
               <Card variant="elevated" padded={false}>
                 <CardBody>
-                  {reviews.map((review, idx) => {
-                    const author =
-                      mockUsers.find((u) => u.id === review.authorId) ?? null;
-                    return (
-                      <React.Fragment key={review.id}>
-                        <ReviewCard
-                          authorName={author ? fullName(author) : 'Usuario'}
-                          authorAvatar={author?.avatarUrl}
-                          rating={review.rating}
-                          text={review.comment}
-                          date={review.createdAt}
-                          variant="compact"
-                        />
-                        {idx < reviews.length - 1 ? (
-                          <Divider style={{ marginVertical: 4 }} />
-                        ) : null}
-                      </React.Fragment>
-                    );
-                  })}
+                  {reviews.map((review, idx) => (
+                    <React.Fragment key={review.id}>
+                      <ReviewRow
+                        review={review}
+                        isLast={idx === reviews.length - 1}
+                      />
+                    </React.Fragment>
+                  ))}
                 </CardBody>
               </Card>
             )}
@@ -336,6 +325,32 @@ function BackButton({ onPress, label }: BackButtonProps): React.JSX.Element {
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ReviewRow — single review with author resolved from Supabase.
+// ---------------------------------------------------------------------------
+
+interface ReviewRowProps {
+  review: Review;
+  isLast: boolean;
+}
+
+function ReviewRow({ review, isLast }: ReviewRowProps): React.JSX.Element {
+  const { data: author } = useProfileQuery(review.authorId);
+  return (
+    <>
+      <ReviewCard
+        authorName={author ? fullName(author) : 'Usuario'}
+        authorAvatar={author?.avatarUrl}
+        rating={review.rating}
+        text={review.comment}
+        date={review.createdAt}
+        variant="compact"
+      />
+      {!isLast ? <Divider style={{ marginVertical: 4 }} /> : null}
+    </>
   );
 }
 

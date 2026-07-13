@@ -47,9 +47,8 @@ import {
   shouldShowTimestamp,
 } from '@/features/messages';
 import { messageStore, useConversationById, useMessagesByConversation } from '@/data/messageStore';
-import { mockUsers } from '@/data/mocks/users';
 import type { Conversation, Message, User } from '@/data/types';
-import { getUserById } from '@/domain/user';
+import { useProfileQuery } from '@/hooks/useProfileQuery';
 import { useTheme } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
 
@@ -96,17 +95,28 @@ export default function ChatScreen(): React.JSX.Element {
   const { messages } = useMessagesByConversation(conversation?.id ?? null);
 
   // --- Other participant ---
-  const other: User | null = useMemo<User | null>(() => {
-    // For new conversations, look up the owner directly.
-    if (isNewConversation && ownerId) {
-      return getUserById(mockUsers, ownerId) ?? genericUser(ownerId);
-    }
-    if (!conversation || !me) return null;
+  // For new conversations, we know the owner ID directly.
+  // For existing ones, derive it from the conversation participants.
+  const otherUserId = useMemo<string | undefined>(() => {
+    if (isNewConversation && ownerId) return ownerId;
+    if (!conversation || !me) return undefined;
     const otherId = getOtherParticipant(conversation, me);
-    if (!otherId) return null;
-    if (otherId === me.id) return me;
-    return getUserById(mockUsers, otherId) ?? genericUser(otherId);
+    return otherId && otherId !== me.id ? otherId : undefined;
   }, [conversation, me, isNewConversation, ownerId]);
+
+  const { data: profileData, isLoading: isProfileLoading } =
+    useProfileQuery(otherUserId);
+
+  const other: User | null = useMemo<User | null>(() => {
+    if (profileData) return profileData;
+    // Self-conversation: surface the current user as a stub so the
+    // header still renders.
+    if (conversation && me) {
+      const otherId = getOtherParticipant(conversation, me);
+      if (otherId === me.id) return me;
+    }
+    return null;
+  }, [profileData, conversation, me]);
 
   // --- Composer ---
   const [draft, setDraft] = useState<string>('');
@@ -157,7 +167,11 @@ export default function ChatScreen(): React.JSX.Element {
     if (!conversation || !me) return;
     if (markedAsReadRef.current.has(conversation.id)) return;
     markedAsReadRef.current.add(conversation.id);
-    void messageStore.markAsRead(conversation.id, me.id);
+    void messageStore.markAsRead(conversation.id, me.id).then(() => {
+      // Invalidate so the conversations list and unread badge refresh.
+      void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });
+      void queryClient.invalidateQueries({ queryKey: ['unread', me.id] });
+    });
   }, [conversation, me, messages.length]);
 
   // --- Auto-scroll ---
@@ -256,9 +270,18 @@ export default function ChatScreen(): React.JSX.Element {
     );
   }
 
-  // `other` is guaranteed non-null here: either we have ownerId (new conv)
-  // or conversation loaded (existing conv). TypeScript can't infer this,
-  // so we guard explicitly.
+  // Show skeleton while profile is loading (instead of generic "Conductor").
+  if (isProfileLoading && !other) {
+    return (
+      <SafeAreaView
+        style={[styles.flex, { backgroundColor: theme.colors.background }]}
+        edges={['top', 'bottom']}
+      >
+        <ChatSkeleton />
+      </SafeAreaView>
+    );
+  }
+
   if (!other) {
     return (
       <SafeAreaView
@@ -313,31 +336,6 @@ export default function ChatScreen(): React.JSX.Element {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Generic stub for unknown user ids.
-// ---------------------------------------------------------------------------
-
-const genericUserCache: Record<string, User> = {};
-function genericUser(id: string): User {
-  if (genericUserCache[id]) return genericUserCache[id]!;
-  const u: User = {
-    id,
-    name: 'Conductor',
-    surname: '',
-    email: '',
-    avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      id,
-    )}&background=00C896&color=fff&size=200&bold=true&format=png`,
-    rating: 0,
-    reviewCount: 0,
-    isOnline: false,
-    isHost: false,
-    joinedAt: new Date().toISOString(),
-  };
-  genericUserCache[id] = u;
-  return u;
 }
 
 const styles = StyleSheet.create({

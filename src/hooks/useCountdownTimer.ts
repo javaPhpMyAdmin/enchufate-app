@@ -12,7 +12,6 @@
  * When the countdown expires, fires a local push notification so the user
  * is alerted even if the app is backgrounded.
  */
-import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
@@ -96,14 +95,17 @@ export function useCountdownTimer(
     if (totalSecondsLeft === 0 && !hasFiredExpiryRef.current) {
       hasFiredExpiryRef.current = true;
 
-      void Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Tu cargador está disponible',
-          body: 'El cargador que estabas mirando ya está libre.',
-          data: { type: 'charger-available', chargerId: chargerId ?? null },
-        },
-        trigger: null, // immediate
-      });
+      void (async () => {
+        const Notifications = await import('expo-notifications');
+        void Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Tu cargador está disponible',
+            body: 'El cargador que estabas mirando ya está libre.',
+            data: { type: 'charger-available', chargerId: chargerId ?? null },
+          },
+          trigger: null, // immediate
+        });
+      })();
     }
   }, [now, estimatedEnd?.getTime(), chargerId]);
 

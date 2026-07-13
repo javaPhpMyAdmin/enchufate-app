@@ -227,20 +227,10 @@ function ProfileBody({
     variant: AlertModalVariant;
   }>({ title: '', variant: 'info' });
 
-  // Show skeleton while chargers are loading
-  if (isLoading && chargers.length === 0) {
-    return <ProfileSkeleton />;
-  }
-
-  // The current user is always a "host" if they have at least one charger,
-  // even if their account wasn't created with the isHost flag set.
-  const showStats = isHost || chargers.length > 0;
-
   const handlePublish = (): void => {
     router.push('/publish');
   };
 
-  // Tap a charger card → navigate to map with that charger selected.
   const handleOpenDetail = (id: string) => {
     router.push({ pathname: '/(tabs)/map', params: { select: id } });
   };
@@ -309,6 +299,15 @@ function ProfileBody({
       setDeleting(false);
     }
   }, [pendingDelete]);
+
+  // Show skeleton while chargers are loading
+  if (isLoading && chargers.length === 0) {
+    return <ProfileSkeleton />;
+  }
+
+  // The current user is always a "host" if they have at least one charger,
+  // even if their account wasn't created with the isHost flag set.
+  const showStats = isHost || chargers.length > 0;
 
 
   if (!session) return <View />;

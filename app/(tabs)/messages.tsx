@@ -25,15 +25,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState, Screen } from '@/components/ui';
-import { ConversationListItem, ConversationsListSkeleton } from '@/components/messages';
+import { ConversationListItem, ConversationsListSkeleton, ConversationRowSkeleton } from '@/components/messages';
 import { useAuth } from '@/features/auth';
 import { sortByRecency } from '@/features/messages';
 import {
   useConversationsForUser,
 } from '@/data/messageStore';
-import { mockUsers } from '@/data/mocks/users';
 import type { Conversation, User } from '@/data/types';
-import { getUserById } from '@/domain/user';
+import { useProfileQuery } from '@/hooks/useProfileQuery';
 import { useTheme } from '@/theme';
 
 export default function MessagesScreen(): React.JSX.Element {
@@ -196,14 +195,10 @@ function ConversationsBody({
     if (!query.trim()) return sorted;
     const q = query.toLowerCase();
     return sorted.filter((c) => {
-      const otherId = c.participantIds.find((id) => id !== currentUserId);
-      const other = otherId ? getUserById(mockUsers, otherId) : null;
-      if (!other) return false;
-      const fullName = `${other.name} ${other.surname}`.toLowerCase();
       const preview = c.lastMessagePreview.toLowerCase();
-      return fullName.includes(q) || preview.includes(q);
+      return preview.includes(q);
     });
-  }, [conversations, query, currentUserId]);
+  }, [conversations, query]);
 
   if (filtered.length === 0) {
     return (
@@ -257,12 +252,13 @@ function Row({
   const otherId = conversation.participantIds.find(
     (id) => id !== currentUserId,
   );
-  // We may not have a User record for the other id (e.g. the
-  // conversation was just auto-created with an unknown id). In that
-  // case we render a generic stub so the UI never crashes.
-  const other: User | null = otherId
-    ? getUserById(mockUsers, otherId) ?? genericOther(otherId)
-    : null;
+  const { data: profile, isLoading } = useProfileQuery(otherId ?? undefined);
+
+  if (isLoading) {
+    return <ConversationRowSkeleton />;
+  }
+
+  const other: User | null = profile ?? null;
   if (!other) {
     return <View />;
   }
@@ -275,13 +271,6 @@ function Row({
     />
   );
 }
-
-// ---------------------------------------------------------------------------
-// Generic stub for unknown users (e.g. a freshly-created conversation
-// where the "other" id isn't in the mock list).
-// ---------------------------------------------------------------------------
-
-import { genericUser as genericOther } from '@/data/userStub';
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

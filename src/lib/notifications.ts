@@ -2,7 +2,7 @@
  * Push notification helpers — client-side token registration and local notifications.
  *
  * `registerPushToken` requests permission from the OS, obtains the Expo Push
- * Token, and upserts it into the `profiles` table so Edge Functions can
+ * Token, and upsets it into the `profiles` table so Edge Functions can
  * deliver server-side push notifications (new messages, new reviews).
  *
  * `clearPushToken` removes the token on sign-out so stale tokens don't
@@ -10,8 +10,10 @@
  *
  * The module is idempotent — calling `registerPushToken` multiple times is
  * safe and expected (token rotation on every sign-in).
+ *
+ * NOTE: expo-notifications is dynamically imported to avoid the
+ * "Android Push notifications removed from Expo Go" error on SDK 53+.
  */
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
@@ -31,6 +33,8 @@ export async function registerPushToken(
   userId: string,
 ): Promise<string | null> {
   try {
+    const Notifications = await import('expo-notifications');
+
     // 1. Request permission (no-op if already granted).
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
@@ -104,7 +108,8 @@ export async function clearPushToken(userId: string): Promise<void> {
  * in the foreground. Background and killed-state handling is done by
  * Expo's native module automatically.
  */
-export function configureNotificationHandler(): void {
+export async function configureNotificationHandler(): Promise<void> {
+  const Notifications = await import('expo-notifications');
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
