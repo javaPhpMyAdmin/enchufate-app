@@ -2,7 +2,6 @@ import React, {
   forwardRef,
   useCallback,
   useImperativeHandle,
-  useMemo,
   useRef,
 } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -36,11 +35,11 @@ export interface ChargerMapProps {
 
 const DEFAULT_REGION: Region = {
   // Montevideo, Uruguay — center of the brand's home market.
-  // 0.08° delta ≈ 8–9 km wide, a comfortable neighborhood view.
+  // ~0.18° delta ≈ 18 km wide, shows most of Montevideo + surroundings.
   latitude: -34.9036,
   longitude: -56.158,
-  latitudeDelta: 0.08,
-  longitudeDelta: 0.08,
+  latitudeDelta: 0.18,
+  longitudeDelta: 0.18,
 };
 
 const PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
@@ -51,13 +50,7 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
     ref,
   ) {
     const theme = useTheme();
-    // The underlying react-native-maps MapView instance, captured via ref callback.
     const underlyingMapRef = useRef<MapView | null>(null);
-
-    const region = useMemo<Region>(
-      () => initialRegion ?? DEFAULT_REGION,
-      [initialRegion],
-    );
 
     const captureMapRef = useCallback((map: any) => {
       underlyingMapRef.current = map as MapView;
@@ -90,7 +83,6 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
             );
             return;
           }
-          // Defer to the built-in fit when we have multiple points.
           underlyingMapRef.current?.fitToCoordinates(coords, {
             edgePadding: { top: 80, right: 80, bottom: 240, left: 80 },
             animated: true,
@@ -111,7 +103,7 @@ export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProp
           ref={captureMapRef}
           provider={PROVIDER}
           style={styles.map}
-          initialRegion={region}
+          initialRegion={initialRegion ?? DEFAULT_REGION}
           showsUserLocation
           showsMyLocationButton={false}
           showsCompass

@@ -31,10 +31,9 @@ import {
 import { useAuth } from '@/features/auth';
 import { useChargersQuery } from '@/hooks/useChargersQuery';
 import { useProfileQuery } from '@/hooks/useProfileQuery';
-import { mockUsers } from '@/data/mocks/users';
 import { DEFAULT_FILTERS, type Charger, type ChargerFilters, type LatLng, type User } from '@/data/types';
+import { genericUser } from '@/data/userStub';
 import { applyFilters } from '@/domain/charger';
-import { getUserById } from '@/domain/user';
 import { haversineKm } from '@/lib/distance';
 import { useTheme } from '@/theme';
 
@@ -49,6 +48,7 @@ export default function MapScreen(): React.JSX.Element {
 
   const [viewMode, setViewMode] = useState<MapViewMode>('map');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedTick, setSelectedTick] = useState(0); // forces re-fire on same charger tap
   const [filters, setFilters] = useState<ChargerFilters>(DEFAULT_FILTERS);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
@@ -99,13 +99,6 @@ export default function MapScreen(): React.JSX.Element {
     return () => cancelAnimationFrame(id);
   }, [userLocation]);
 
-  // Index users by id once for fast lookup.
-  const userById = useMemo<Record<string, User>>(() => {
-    const map: Record<string, User> = {};
-    for (const u of mockUsers) map[u.id] = u;
-    return map;
-  }, []);
-
   // The store is the single source of truth. Subscribing here means
   // newly published chargers appear on the map without a refresh.
   // Use the query hook directly to avoid a double subscription
@@ -141,24 +134,31 @@ export default function MapScreen(): React.JSX.Element {
   // Resolve the real owner from Supabase when a charger is selected.
   const { data: selectedOwner } = useProfileQuery(selectedCharger?.ownerId);
 
-  // Whenever a charger is selected (from the map marker OR from the list
-  // card), open the bottom sheet for it. This is what makes the marker
-  // press on the map actually surface the bottom sheet.
-  useEffect(() => {
-    if (selectedCharger && selectedOwner) {
-      detailSheetRef.current?.show(selectedCharger, selectedOwner);
-    }
-  }, [selectedCharger, selectedOwner]);
-
+  // Imperatively show the sheet on every tap. Uses a stub owner so the
+  // sheet opens instantly with a skeleton; the useEffect below updates it
+  // when the real owner resolves from Supabase.
   const handleOpenDetail = useCallback(
     (id: string) => {
       setSelectedId(id);
-      // The useEffect above handles opening the sheet once selectedCharger
-      // and selectedOwner are resolved via TanStack Query — no need to
-      // imperatively read the cache or call fetchProfileById here.
+      setSelectedTick((t) => t + 1); // always increments, even for same charger
+      // Find the charger from the current data (synchronous — it's in memory).
+      const c =
+        visibleChargers.find((ch) => ch.id === id) ??
+        allChargers.find((ch) => ch.id === id);
+      if (!c) return;
+      detailSheetRef.current?.show(c, genericUser(c.ownerId), true);
     },
-    [],
+    [visibleChargers, allChargers],
   );
+
+  // When the real owner data arrives, update the sheet. selectedTick
+  // ensures this fires even when tapping the same charger again (cached
+  // owner has the same reference, but the tick always changes).
+  useEffect(() => {
+    if (selectedCharger && selectedOwner) {
+      detailSheetRef.current?.show(selectedCharger, selectedOwner, false);
+    }
+  }, [selectedCharger, selectedOwner, selectedTick]);
 
   const handleMyLocation = useCallback(() => {
     if (!userLocation) return;
@@ -290,9 +290,7 @@ export default function MapScreen(): React.JSX.Element {
         )}
       </SafeAreaView>
 
-      {chargersLoading && allChargers.length === 0 && (
-        <ChargerLoadingOverlay />
-      )}
+      {chargersLoading ? <ChargerLoadingOverlay /> : null}
 
       <ChargerDetailSheet
         ref={detailSheetRef}
@@ -361,9 +359,7 @@ const ChargerCardWithProfile = React.memo(function ChargerCardWithProfile({
 });
 
 // Fallback user for owners that aren't in the seed list (e.g. chargers
-// created via the host flow). Uses shared stub with a name override.
-import { genericUser as _genericUser } from '@/data/userStub';
+// created via the host flow). Uses shared stub.
 function genericOwnerStub(ownerId: string): User {
-  const u = _genericUser(ownerId);
-  return { ...u, rating: 4.8, isHost: true };
+  return genericUser(ownerId);
 }

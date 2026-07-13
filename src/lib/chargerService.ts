@@ -99,14 +99,15 @@ export const CHARGER_QUERY_KEY = ['chargers'] as const;
 // CRUD
 // ---------------------------------------------------------------------------
 
-/** Fetch all chargers via RPC (PostgREST returns geography as WKB hex). */
+/** Fetch all chargers via RPC. Returns jsonb with ST_AsGeoJSON location. */
 export async function fetchAllChargers(): Promise<Charger[]> {
   const { data, error } = await supabase.rpc('fetch_chargers_rpc');
 
   if (error || !data) {
-    console.warn('[chargerService] fetchAllChargers', error?.message);
+    console.error('[chargerService] fetchAllChargers ERROR:', error?.message);
     return [];
   }
+
   return (data as ChargerRow[]).map(rowToCharger);
 }
 

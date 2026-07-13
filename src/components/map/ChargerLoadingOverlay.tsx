@@ -89,7 +89,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    // zIndex alone doesn't work on Android when a native map view is present.
+    // react-native-maps renders on a native layer above React Native views;
+    // elevation controls the actual z-ordering at the native level.
     zIndex: 50,
+    elevation: 99,
   },
   card: {
     alignItems: 'center',

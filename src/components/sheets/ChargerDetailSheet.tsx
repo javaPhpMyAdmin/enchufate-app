@@ -22,11 +22,13 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
 import {
+  Animated,
   Linking,
   Platform,
   Pressable,
@@ -64,7 +66,7 @@ import {
 import { useTheme } from '@/theme';
 
 export interface ChargerDetailSheetHandle {
-  show: (charger: Charger, owner: User) => void;
+  show: (charger: Charger, owner: User, loading?: boolean) => void;
   close: () => void;
 }
 
@@ -86,6 +88,7 @@ export const ChargerDetailSheet = forwardRef<
 
   const [charger, setCharger] = useState<Charger | null>(null);
   const [owner, setOwner] = useState<User | null>(null);
+  const [ownerLoading, setOwnerLoading] = useState(false);
   // Delay mounting BottomSheet until first show() — prevents the backdrop
   // from flashing on screen mount (gorhom/bottom-sheet v5 renders on mount).
   const [mounted, setMounted] = useState(false);
@@ -93,10 +96,11 @@ export const ChargerDetailSheet = forwardRef<
   useImperativeHandle(
     ref,
     () => ({
-      show: (c, o) => {
+      show: (c, o, loading = false) => {
         setMounted(true);
         setCharger(c);
         setOwner(o);
+        setOwnerLoading(loading);
         // Small delay to ensure BottomSheet is mounted before snapping.
         requestAnimationFrame(() => {
           sheetRef.current?.snapToIndex(0);
@@ -161,10 +165,13 @@ export const ChargerDetailSheet = forwardRef<
       onClose={() => {
         setCharger(null);
         setOwner(null);
+        setOwnerLoading(false);
       }}
     >
       <BottomSheetView style={styles.content}>
-        {charger && owner ? (
+        {charger && ownerLoading ? (
+          <SheetSkeleton charger={charger} />
+        ) : charger && owner ? (
           <DetailContent
             charger={charger}
             owner={owner}
@@ -178,6 +185,91 @@ export const ChargerDetailSheet = forwardRef<
     </BottomSheet>
   );
 });
+
+// ---------------------------------------------------------------------------
+// Skeleton shown while the owner profile is loading
+// ---------------------------------------------------------------------------
+
+function SheetSkeleton({ charger }: { charger: Charger }): React.JSX.Element {
+  const theme = useTheme();
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  const bg = theme.colors.surfaceAlt;
+
+  return (
+    <>
+      {/* Header skeleton — avatar + name + status pill */}
+      <View style={styles.header}>
+        <Animated.View
+          style={[styles.skeletonAvatar, { backgroundColor: bg, opacity: pulseAnim }]}
+        />
+        <View style={styles.headerText}>
+          <Animated.View
+            style={[styles.skeletonLine, { width: '70%', height: 18, backgroundColor: bg, opacity: pulseAnim }]}
+          />
+          <Animated.View
+            style={[styles.skeletonLine, { width: '50%', height: 14, marginTop: 8, backgroundColor: bg, opacity: pulseAnim }]}
+          />
+        </View>
+        <Animated.View
+          style={[styles.skeletonPill, { backgroundColor: bg, opacity: pulseAnim }]}
+        />
+      </View>
+
+      <Divider style={styles.divider} />
+
+      {/* Specs skeleton */}
+      <View style={styles.specsRow}>
+        {[1, 2, 3].map((i) => (
+          <View key={i} style={styles.spec}>
+            <Animated.View
+              style={[styles.skeletonSquare, { backgroundColor: bg, opacity: pulseAnim }]}
+            />
+            <View style={styles.specText}>
+              <Animated.View
+                style={[styles.skeletonLine, { width: '80%', height: 10, backgroundColor: bg, opacity: pulseAnim }]}
+              />
+              <Animated.View
+                style={[styles.skeletonLine, { width: '60%', height: 16, marginTop: 4, backgroundColor: bg, opacity: pulseAnim }]}
+              />
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <Divider style={styles.divider} />
+
+      {/* Actions skeleton */}
+      <View style={styles.actions}>
+        {[1, 2, 3].map((i) => (
+          <Animated.View
+            key={i}
+            style={[styles.skeletonButton, { backgroundColor: bg, opacity: pulseAnim }]}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Detail content
@@ -587,5 +679,29 @@ const styles = StyleSheet.create({
   },
   actionButtonPrimary: {
     borderColor: 'transparent',
+  },
+  skeletonAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  skeletonLine: {
+    borderRadius: 4,
+  },
+  skeletonPill: {
+    width: 72,
+    height: 28,
+    borderRadius: 9999,
+    marginLeft: 8,
+  },
+  skeletonSquare: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+  },
+  skeletonButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 12,
   },
 });
