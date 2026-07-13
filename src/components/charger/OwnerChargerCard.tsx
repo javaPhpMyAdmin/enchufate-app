@@ -12,6 +12,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Image,
+  InteractionManager,
   Modal as RNModal,
   Pressable,
   StyleSheet,
@@ -68,8 +69,12 @@ export function OwnerChargerCard({
 
   const handleToggleBusy = useCallback(() => {
     setMenuOpen(false);
-    // Small delay to let the action sheet close first.
-    setTimeout(() => durationPickerRef.current?.open(), 200);
+    // Open the duration picker after the action sheet fade-out completes.
+    // Using InteractionManager ensures we wait for the animation, not a
+    // fixed timeout that may be too short on slow devices.
+    InteractionManager.runAfterInteractions(() => {
+      durationPickerRef.current?.open();
+    });
   }, []);
 
   const handleDurationConfirm = useCallback(

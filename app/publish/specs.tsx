@@ -6,7 +6,7 @@
  * input for clarity.
  */
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -38,7 +38,7 @@ const CONNECTORS: ConnectorType[] = [
 export default function Step3Screen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
-  const { draft, update, isStepValid } = usePublishDraft();
+  const { draft, update } = usePublishDraft();
   const [connector, setConnector] = useState<ConnectorType | undefined>(
     draft.step3?.connectorType,
   );
@@ -46,15 +46,6 @@ export default function Step3Screen(): React.JSX.Element {
     draft.step3?.powerKw ? String(draft.step3.powerKw) : '',
   );
   const [showErrors, setShowErrors] = useState<boolean>(false);
-
-  useEffect(() => {
-    const parsedPower = Number.parseFloat(power);
-    const powerKw = Number.isFinite(parsedPower) ? parsedPower : 0;
-    update(3, {
-      connectorType: connector,
-      powerKw,
-    });
-  }, [connector, power, update]);
 
   const handleNext = (): void => {
     const parsedPower = Number.parseFloat(power);
@@ -66,11 +57,18 @@ export default function Step3Screen(): React.JSX.Element {
       setShowErrors(true);
       return;
     }
+    update(3, {
+      connectorType: connector,
+      powerKw: Number.isFinite(parsedPower) ? parsedPower : 0,
+    });
     router.replace('/publish/photos');
   };
 
   const parsedPower = Number.parseFloat(power);
-  const valid = isStepValid(3);
+  const valid = step3Schema.safeParse({
+    connectorType: connector,
+    powerKw: Number.isFinite(parsedPower) ? parsedPower : 0,
+  }).success;
 
   const connectorError = showErrors && !connector
     ? 'Elegí un tipo de conector'
@@ -150,6 +148,13 @@ export default function Step3Screen(): React.JSX.Element {
             <TextInput
               value={power}
               onChangeText={(t) => setPower(t.replace(',', '.'))}
+              onBlur={() => {
+                const parsed = Number.parseFloat(power);
+                update(3, {
+                  connectorType: connector,
+                  powerKw: Number.isFinite(parsed) ? parsed : 0,
+                });
+              }}
               keyboardType="numeric"
               placeholder="11"
               placeholderTextColor={theme.colors.textLight}

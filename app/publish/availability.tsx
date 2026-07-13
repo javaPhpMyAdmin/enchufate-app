@@ -6,12 +6,13 @@
  * for every day.
  */
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PublishGateBanner, ScheduleEditor, WizardFooter } from '@/components/publish';
 import {
   buildDefaultSchedule,
+  step6Schema,
   usePublishDraft,
   type WeeklySchedule,
 } from '@/features/publish';
@@ -20,20 +21,17 @@ import { useTheme } from '@/theme';
 export default function Step6Screen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
-  const { draft, update, isStepValid } = usePublishDraft();
+  const { draft, update } = usePublishDraft();
   const [schedule, setSchedule] = useState<WeeklySchedule>(
     draft.step6?.schedule ?? buildDefaultSchedule(),
   );
 
-  useEffect(() => {
-    update(6, { schedule });
-  }, [schedule, update]);
-
   const handleNext = (): void => {
+    update(6, { schedule });
     router.replace('/publish/rules');
   };
 
-  const valid = isStepValid(6);
+  const valid = step6Schema.safeParse({ schedule }).success;
 
   return (
     <View style={styles.flex}>

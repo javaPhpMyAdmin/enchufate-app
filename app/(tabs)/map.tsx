@@ -29,8 +29,6 @@ import {
   type MapViewMode,
 } from '@/components/map';
 import { useAuth } from '@/features/auth';
-import { fetchProfileById } from '@/features/auth/profileMapper';
-import { chargerStore } from '@/data/chargerStore';
 import { useChargersQuery } from '@/hooks/useChargersQuery';
 import { useProfileQuery } from '@/hooks/useProfileQuery';
 import { mockUsers } from '@/data/mocks/users';
@@ -155,13 +153,9 @@ export default function MapScreen(): React.JSX.Element {
   const handleOpenDetail = useCallback(
     (id: string) => {
       setSelectedId(id);
-      // Open the sheet directly — resolve the real owner from Supabase.
-      const c = chargerStore.byId(id);
-      if (c) {
-        void fetchProfileById(c.ownerId).then((o) => {
-          detailSheetRef.current?.show(c, o);
-        });
-      }
+      // The useEffect above handles opening the sheet once selectedCharger
+      // and selectedOwner are resolved via TanStack Query — no need to
+      // imperatively read the cache or call fetchProfileById here.
     },
     [],
   );
@@ -345,7 +339,7 @@ const styles = StyleSheet.create({
 // so owner data is fetched lazily via TanStack Query (deduplication ensures
 // identical query keys only trigger one network request).
 // ---------------------------------------------------------------------------
-function ChargerCardWithProfile({
+const ChargerCardWithProfile = React.memo(function ChargerCardWithProfile({
   charger,
   distanceKm,
   onPress,
@@ -364,31 +358,12 @@ function ChargerCardWithProfile({
       onPress={onPress}
     />
   );
-}
+});
 
 // Fallback user for owners that aren't in the seed list (e.g. chargers
-// created via the host flow). Generates a stable ui-avatars URL so the
-// visual is consistent with the seed.
-const fallbackCache: Record<string, User> = {};
+// created via the host flow). Uses shared stub with a name override.
+import { genericUser as _genericUser } from '@/data/userStub';
 function genericOwnerStub(ownerId: string): User {
-  const cached = fallbackCache[ownerId];
-  if (cached) return cached;
-  const shortId = ownerId.slice(0, 8);
-  const url = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    shortId,
-  )}&background=00C896&color=fff&size=200&bold=true&format=png`;
-  const u: User = {
-    id: ownerId,
-    name: shortId,
-    surname: '',
-    email: '',
-    avatarUrl: url,
-    rating: 4.8,
-    reviewCount: 0,
-    isOnline: true,
-    isHost: true,
-    joinedAt: new Date().toISOString(),
-  };
-  fallbackCache[ownerId] = u;
-  return u;
+  const u = _genericUser(ownerId);
+  return { ...u, rating: 4.8, isHost: true };
 }

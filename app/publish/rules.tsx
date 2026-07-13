@@ -6,7 +6,7 @@
  * and routes to the success screen.
  */
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -30,7 +30,7 @@ export default function Step7Screen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
   const { session } = useAuth();
-  const { draft, update, reset, isStepValid, editingId } = usePublishDraft();
+  const { draft, update, reset, editingId } = usePublishDraft();
   const [rules, setRules] = useState<string>(draft.step7?.rules ?? '');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -40,11 +40,7 @@ export default function Step7Screen(): React.JSX.Element {
     variant: AlertModalVariant;
   }>({ title: '', variant: 'info' });
 
-  useEffect(() => {
-    update(7, { rules });
-  }, [rules, update]);
-
-  const valid = isStepValid(7);
+  const valid = rules.length <= 300;
   const nextLabel = editingId ? 'Guardar cambios' : 'Publicar';
 
   const handleSubmit = async (): Promise<void> => {
@@ -60,6 +56,7 @@ export default function Step7Screen(): React.JSX.Element {
     }
     setSubmitting(true);
     try {
+      update(7, { rules: rules || undefined });
       const fullDraft = {
         step1: draft.step1!,
         step2: draft.step2!,
@@ -101,7 +98,7 @@ export default function Step7Screen(): React.JSX.Element {
       }
 
       await reset();
-      router.replace({
+      router.push({
         pathname: '/publish/success',
         params: { mode: editingId ? 'edit' : 'create' },
       });

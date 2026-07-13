@@ -6,7 +6,7 @@
  * `MIN_RENTAL_OPTIONS`.
  */
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -25,7 +25,7 @@ import { useTheme } from '@/theme';
 export default function Step5Screen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
-  const { draft, update, isStepValid } = usePublishDraft();
+  const { draft, update } = usePublishDraft();
   const [price, setPrice] = useState<string>(
     draft.step5?.pricePerHour ? String(draft.step5.pricePerHour) : '',
   );
@@ -33,14 +33,6 @@ export default function Step5Screen(): React.JSX.Element {
     draft.step5?.minRentalMinutes ?? null,
   );
   const [showErrors, setShowErrors] = useState<boolean>(false);
-
-  useEffect(() => {
-    const parsedPrice = Number.parseFloat(price);
-    update(5, {
-      pricePerHour: Number.isFinite(parsedPrice) ? parsedPrice : 0,
-      minRentalMinutes: minMinutes ?? 0,
-    });
-  }, [price, minMinutes, update]);
 
   const parsedPrice = Number.parseFloat(price);
   const priceError = showErrors ? getPriceError(parsedPrice) : undefined;
@@ -55,10 +47,18 @@ export default function Step5Screen(): React.JSX.Element {
       setShowErrors(true);
       return;
     }
+    update(5, {
+      pricePerHour: Number.isFinite(parsedPrice) ? parsedPrice : 0,
+      minRentalMinutes: minMinutes ?? 0,
+    });
     router.replace('/publish/availability');
   };
 
-  const valid = isStepValid(5);
+  const valid =
+    Number.isFinite(parsedPrice) &&
+    parsedPrice >= 1 &&
+    parsedPrice <= 50 &&
+    minMinutes !== null;
 
   return (
     <KeyboardAvoidingView
@@ -122,6 +122,13 @@ export default function Step5Screen(): React.JSX.Element {
             <TextInput
               value={price}
               onChangeText={(t) => setPrice(t.replace(',', '.'))}
+              onBlur={() => {
+                const parsed = Number.parseFloat(price);
+                update(5, {
+                  pricePerHour: Number.isFinite(parsed) ? parsed : 0,
+                  minRentalMinutes: minMinutes ?? 0,
+                });
+              }}
               keyboardType="numeric"
               placeholder="6"
               placeholderTextColor={theme.colors.textLight}

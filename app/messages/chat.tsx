@@ -282,7 +282,7 @@ export default function ChatScreen(): React.JSX.Element {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}
       >
         {isNewConversation ? (
           // Empty state for new conversations.

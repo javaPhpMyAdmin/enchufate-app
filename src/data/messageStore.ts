@@ -28,6 +28,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import type { Conversation, Message } from '@/data/types';
 
 // ---------------------------------------------------------------------------
@@ -164,10 +165,8 @@ async function createConversationWithFirstMessage(
  * participants, or create a new one. The participant set is compared
  * sorted so order doesn't matter.
  *
- * Strategy: RLS already restricts the SELECT to the current user's
- * conversations, so we use `.contains('participant_ids', [firstUser])`
- * to narrow the candidates to a manageable set, then filter
- * client-side for the exact match.
+ * Uses the server-side `find_or_create_conversation` RPC which handles
+ * deduplication atomically via a unique index on `participant_sorted`.
  */
 async function findOrCreateConversation(
   participantIds: string[],
@@ -175,45 +174,12 @@ async function findOrCreateConversation(
   if (participantIds.length < 2) {
     throw new Error('A conversation needs at least 2 participants');
   }
-  const target = [...participantIds].sort();
 
-  // 1. Look for an existing conversation with the exact same participants.
-  //    RLS limits the SELECT to conversations the caller participates in,
-  //    so we can't accidentally see someone else's chat.
-  const { data: candidates, error: queryError } = await supabase
-    .from('conversations')
-    .select('*')
-    .contains('participant_ids', [target[0]!]);
-  if (queryError) {
-    throw new Error(`findOrCreateConversation: ${queryError.message}`);
-  }
-
-  const match = (candidates ?? []).find((c) => {
-    const sorted = [...c.participant_ids].sort();
-    if (sorted.length !== target.length) return false;
-    return sorted.every((id, i) => id === target[i]);
+  const { data, error } = await supabase.rpc('find_or_create_conversation', {
+    p_participant_ids: participantIds,
   });
-  if (match) return rowToConversation(match);
-
-  // 2. Create a new conversation. The `unread_count_by_user` starts at
-  //    0 for every participant; addMessage will bump it for the
-  //    recipient when the first message lands.
-  const { data, error: insertError } = await supabase
-    .from('conversations')
-    .insert({
-      participant_ids: target,
-      last_message_preview: '',
-      last_message_at: new Date().toISOString(),
-      unread_count_by_user: Object.fromEntries(
-        target.map((id) => [id, 0]),
-      ),
-    })
-    .select()
-    .single();
-  if (insertError || !data) {
-    throw new Error(
-      `findOrCreateConversation insert: ${insertError?.message ?? 'no data'}`,
-    );
+  if (error) {
+    throw new Error(`findOrCreateConversation: ${error.message}`);
   }
   return rowToConversation(data as ConversationRow);
 }
@@ -222,69 +188,58 @@ async function findOrCreateConversation(
  * Append a new message. Bumps the parent conversation's
  * `last_message_preview` and `last_message_at`, and increments the
  * recipient's unread counter (never the sender's).
+ *
+ * Uses the `send_message` RPC which consolidates INSERT + conversation
+ * UPDATE into a single server-side transaction (was 3 round-trips).
+ * Push notifications remain client-side (Edge Function call).
  */
 async function addMessage(input: NewMessageInput): Promise<Message> {
-  const createdAt = input.createdAt ?? new Date().toISOString();
   if (!input.body.trim()) {
     throw new Error('addMessage: empty body');
   }
 
-  // 1. Insert the message row.
-  const { data, error: insertError } = await supabase
-    .from('messages')
-    .insert({
-      conversation_id: input.conversationId,
-      author_id: input.authorId,
-      body: input.body,
-      read_by: [input.authorId],
-      created_at: createdAt,
-    })
-    .select()
-    .single();
-  if (insertError || !data) {
-    throw new Error(`addMessage: ${insertError?.message ?? 'no data'}`);
+  // Single round-trip: insert message + update conversation atomically.
+  const { data, error } = await supabase.rpc('send_message', {
+    p_conversation_id: input.conversationId,
+    p_sender_id: input.authorId,
+    p_content: input.body,
+    p_type: 'text',
+  });
+  if (error) {
+    throw new Error(`addMessage: ${error.message}`);
   }
-  const message = rowToMessage(data as MessageRow);
 
-  // 2. Read the current unread map so we can increment the recipients'
-  //    counter (everyone except the sender) and bump the preview + at.
-  const { data: convRow, error: convError } = await supabase
-    .from('conversations')
-    .select('participant_ids, unread_count_by_user')
-    .eq('id', input.conversationId)
-    .single();
-  if (convError || !convRow) {
-    // The message was inserted; just skip the conversation update. The
-    // next message insert will catch up.
-    return message;
-  }
-  const conv = convRow as Pick<
-    ConversationRow,
-    'participant_ids' | 'unread_count_by_user'
-  >;
-  const nextUnread: Record<string, number> = {
-    ...(conv.unread_count_by_user ?? {}),
+  const rpcResult = data as {
+    id: string;
+    conversation_id: string;
+    author_id: string;
+    body: string;
+    read_by: string[];
+    created_at: string;
+    participant_ids: string[];
   };
-  for (const rid of conv.participant_ids) {
-    if (rid === input.authorId) continue;
-    nextUnread[rid] = (nextUnread[rid] ?? 0) + 1;
-  }
-  const preview =
-    input.body.length > 80
-      ? `${input.body.slice(0, 77)}…`
-      : input.body;
 
-  await supabase
-    .from('conversations')
-    .update({
-      last_message_preview: preview,
-      last_message_at: createdAt,
-      unread_count_by_user: nextUnread,
-    })
-    .eq('id', input.conversationId);
+  const message = rowToMessage({
+    id: rpcResult.id,
+    conversation_id: rpcResult.conversation_id,
+    author_id: rpcResult.author_id,
+    body: rpcResult.body,
+    read_by: rpcResult.read_by,
+    created_at: rpcResult.created_at,
+  });
 
-  // 3. Fire push notification to recipients (non-blocking).
-  const recipients = conv.participant_ids.filter(
+  // Optimistically append the message to the TanStack Query cache so
+  // the chat screen renders it immediately without a refetch.
+  queryClient.setQueryData<Message[]>(
+    ['messages', input.conversationId],
+    (prev) => [...(prev ?? []), message],
+  );
+
+  // Invalidate the conversations list so the preview + timestamp update.
+  queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
+  // Fire push notification to recipients (non-blocking).
+  const recipients = rpcResult.participant_ids.filter(
     (id) => id !== input.authorId,
   );
   if (recipients.length > 0) {
@@ -360,46 +315,21 @@ async function sendPushToRecipient(
 /**
  * Mark every message in the conversation as read by `userId`, and reset
  * the conversation's per-user unread counter to 0. Idempotent.
+ *
+ * Uses the server-side `mark_conversation_as_read` RPC which performs the
+ * bulk UPDATE in a single query instead of N individual updates.
  */
 async function markAsRead(
   conversationId: string,
   userId: string,
 ): Promise<void> {
-  // 1. Reset the conversation's unread counter for this user.
-  const { data: convRow, error: convError } = await supabase
-    .from('conversations')
-    .select('unread_count_by_user')
-    .eq('id', conversationId)
-    .single();
-  if (convError || !convRow) return;
-  const conv = convRow as Pick<ConversationRow, 'unread_count_by_user'>;
-  const current = conv.unread_count_by_user ?? {};
-  if ((current[userId] ?? 0) !== 0) {
-    await supabase
-      .from('conversations')
-      .update({
-        unread_count_by_user: { ...current, [userId]: 0 },
-      })
-      .eq('id', conversationId);
+  const { error } = await supabase.rpc('mark_conversation_as_read', {
+    p_conversation_id: conversationId,
+    p_user_id: userId,
+  });
+  if (error) {
+    console.warn('[messageStore] markAsRead RPC failed', error);
   }
-
-  // 2. Mark every message in the conversation as read by this user.
-  //    We fetch all messages and PATCH the ones that don't include us.
-  //    (No bulk-write in the supabase-js client API for array updates.)
-  const { data: messages, error: msgError } = await supabase
-    .from('messages')
-    .select('id, read_by')
-    .eq('conversation_id', conversationId);
-  if (msgError || !messages) return;
-  const updates = (messages as Pick<MessageRow, 'id' | 'read_by'>[])
-    .filter((m) => !(m.read_by ?? []).includes(userId))
-    .map((m) =>
-      supabase
-        .from('messages')
-        .update({ read_by: [...(m.read_by ?? []), userId] })
-        .eq('id', m.id),
-    );
-  await Promise.all(updates);
 }
 
 /** Look up a conversation by id. Returns null if not found or RLS denied. */
@@ -493,19 +423,11 @@ export function useUnreadCountForUser(
   const { data, isLoading } = useQuery({
     queryKey: ['unread', userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('unread_count_by_user')
-        .contains('participant_ids', [userId!]);
+      const { data, error } = await supabase.rpc('get_total_unread_count', {
+        p_user_id: userId!,
+      });
       if (error) throw new Error(error.message);
-      let total = 0;
-      for (const c of (data ?? []) as Pick<
-        ConversationRow,
-        'unread_count_by_user'
-      >[]) {
-        total += c.unread_count_by_user?.[userId!] ?? 0;
-      }
-      return total;
+      return (data as number) ?? 0;
     },
     enabled: !!userId,
     staleTime: 1000 * 60,

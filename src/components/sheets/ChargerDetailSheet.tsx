@@ -583,11 +583,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionButtonSecondary: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.border,
   },
   actionButtonPrimary: {
-    backgroundColor: '#FF6600',
+    backgroundColor: theme.colors.primary,
     borderColor: 'transparent',
   },
 });

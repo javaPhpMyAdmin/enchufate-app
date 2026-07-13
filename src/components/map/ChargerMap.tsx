@@ -1,5 +1,6 @@
 import React, {
   forwardRef,
+  useCallback,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -11,6 +12,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   type Region,
 } from 'react-native-maps';
+import ClusteredMapView from 'react-native-map-clustering';
 
 import type { Charger, LatLng } from '@/data/types';
 import { useTheme } from '@/theme';
@@ -43,24 +45,29 @@ const DEFAULT_REGION: Region = {
 
 const PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
-export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
+export const ChargerMap = React.memo(forwardRef<ChargerMapHandle, ChargerMapProps>(
   function ChargerMap(
     { chargers, selectedId, onSelectCharger, userLocation, initialRegion },
     ref,
   ) {
     const theme = useTheme();
-    const mapRef = useRef<MapView | null>(null);
+    // The underlying react-native-maps MapView instance, captured via ref callback.
+    const underlyingMapRef = useRef<MapView | null>(null);
 
     const region = useMemo<Region>(
       () => initialRegion ?? DEFAULT_REGION,
       [initialRegion],
     );
 
+    const captureMapRef = useCallback((map: any) => {
+      underlyingMapRef.current = map as MapView;
+    }, []);
+
     useImperativeHandle(
       ref,
       () => ({
         animateTo: (coords, zoomDelta) => {
-          mapRef.current?.animateCamera(
+          underlyingMapRef.current?.animateCamera(
             {
               center: coords,
               zoom: zoomDelta !== undefined ? 15 + zoomDelta : undefined,
@@ -74,7 +81,7 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
           if (userLoc) coords.push(userLoc);
           if (coords.length === 1) {
             const only = coords[0]!;
-            mapRef.current?.animateCamera(
+            underlyingMapRef.current?.animateCamera(
               {
                 center: only,
                 zoom: 14,
@@ -84,7 +91,7 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
             return;
           }
           // Defer to the built-in fit when we have multiple points.
-          mapRef.current?.fitToCoordinates(coords, {
+          underlyingMapRef.current?.fitToCoordinates(coords, {
             edgePadding: { top: 80, right: 80, bottom: 240, left: 80 },
             animated: true,
           });
@@ -100,8 +107,8 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
           { backgroundColor: theme.colors.surfaceAlt },
         ]}
       >
-        <MapView
-          ref={mapRef}
+        <ClusteredMapView
+          ref={captureMapRef}
           provider={PROVIDER}
           style={styles.map}
           initialRegion={region}
@@ -112,6 +119,11 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
           loadingEnabled
           loadingBackgroundColor={theme.colors.surface}
           loadingIndicatorColor={theme.colors.primary}
+          radius={50}
+          minZoom={1}
+          maxZoom={20}
+          clusterColor={theme.colors.primary}
+          clusterTextColor="#FFFFFF"
         >
           {chargers.map((c) => (
             <Marker
@@ -124,11 +136,11 @@ export const ChargerMap = forwardRef<ChargerMapHandle, ChargerMapProps>(
               zIndex={selectedId === c.id ? 99 : 1}
             />
           ))}
-        </MapView>
+        </ClusteredMapView>
       </View>
     );
   },
-);
+));
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

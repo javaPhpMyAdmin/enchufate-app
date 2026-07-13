@@ -27,17 +27,13 @@ import { useTheme } from '@/theme';
 export default function Step2Screen(): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
-  const { draft, update, isStepValid } = usePublishDraft();
+  const { draft, update } = usePublishDraft();
   const [location, setLocation] = useState<LatLng | null>(
     draft.step2?.location ?? null,
   );
   const [address, setAddress] = useState<string>(draft.step2?.address ?? '');
   const [locating, setLocating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    update(2, { location: location ?? undefined, address });
-  }, [location, address, update]);
 
   // Auto-detect GPS location + reverse geocode on mount.
   useEffect(() => {
@@ -66,6 +62,7 @@ export default function Step2Screen(): React.JSX.Element {
         const [geo] = await Location.reverseGeocodeAsync(coords);
         if (cancelled) return;
 
+        let detectedAddress = '';
         if (geo) {
           const parts = [
             geo.street,
@@ -76,9 +73,11 @@ export default function Step2Screen(): React.JSX.Element {
           ].filter(Boolean);
           const addr = parts.join(', ');
           if (addr.length > 0) {
+            detectedAddress = addr;
             setAddress(addr);
           }
         }
+        update(2, { location: coords, address: detectedAddress });
       } catch (err) {
         console.warn('[publish-step2] GPS error', err);
         setError('No pudimos obtener tu ubicación. Ingresá la dirección manualmente.');
@@ -89,7 +88,7 @@ export default function Step2Screen(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [update]);
 
   const handleNext = (): void => {
     if (!location) {
@@ -101,10 +100,15 @@ export default function Step2Screen(): React.JSX.Element {
       return;
     }
     setError(null);
+    update(2, { location, address });
     router.replace('/publish/specs');
   };
 
-  const valid = isStepValid(2);
+  const handleAddressBlur = (): void => {
+    update(2, { location: location ?? undefined, address });
+  };
+
+  const valid = location !== null && address.trim().length >= 3;
 
   return (
     <KeyboardAvoidingView
@@ -196,6 +200,7 @@ export default function Step2Screen(): React.JSX.Element {
           label="Dirección"
           value={address}
           onChangeText={setAddress}
+          onBlur={handleAddressBlur}
           placeholder="Ej: Av. 18 de Julio 1234, Montevideo"
           maxLength={140}
           error={error ?? undefined}

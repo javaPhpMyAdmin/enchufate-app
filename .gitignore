@@ -32,6 +32,8 @@ android/
 
 # gentle-ai tooling state (not project source)
 .atl/
+.agents/
+skills-lock.json
 
 # supabase CLI local temp (created by `supabase link` / `supabase db push`)
 supabase/.temp/

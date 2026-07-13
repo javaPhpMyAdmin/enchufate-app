@@ -17,12 +17,10 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
-  type ListRenderItemInfo,
 } from 'react-native';
 import {
   Bell,
@@ -312,27 +310,6 @@ function ProfileBody({
     }
   }, [pendingDelete]);
 
-  const renderChargerItem = useCallback(
-    ({ item }: ListRenderItemInfo<Charger>) => (
-      <View style={styles.chargerItem}>
-        <OwnerChargerCard
-          charger={item}
-          onPress={handleOpenDetail}
-          onEdit={handleEditCharger}
-          onDelete={handleDeletePrompt}
-          onToggleBusy={handleToggleBusy}
-          onSetAvailable={handleSetAvailable}
-        />
-      </View>
-    ),
-    [
-      handleOpenDetail,
-      handleEditCharger,
-      handleDeletePrompt,
-      handleToggleBusy,
-      handleSetAvailable,
-    ],
-  );
 
   if (!session) return <View />;
 
@@ -406,12 +383,19 @@ function ProfileBody({
             >
               {`${chargers.length} ${chargers.length === 1 ? 'cargador publicado' : 'cargadores publicados'}`}
             </Text>
-            <FlatList
-              data={chargers}
-              keyExtractor={(c) => c.id}
-              renderItem={renderChargerItem}
-              scrollEnabled={false}
-            />
+            <View style={{ gap: 12 }}>
+              {chargers.map((c) => (
+                <OwnerChargerCard
+                  key={c.id}
+                  charger={c}
+                  onPress={handleOpenDetail}
+                  onEdit={handleEditCharger}
+                  onDelete={handleDeletePrompt}
+                  onToggleBusy={handleToggleBusy}
+                  onSetAvailable={handleSetAvailable}
+                />
+              ))}
+            </View>
           </>
         )}
       </View>
@@ -526,15 +510,15 @@ const styles = StyleSheet.create({
   },
   viewPublic: {},
   sectionTitle: {
-    color: '#0F172A',
+    color: theme.colors.text,
     marginTop: 4,
   },
   logoutWrap: {
     marginTop: 8,
   },
   logoutButton: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: theme.colors.dangerSurface,
+    borderColor: theme.colors.dangerBorder,
   },
   chargersSection: {},
   chargersHeaderRow: {
@@ -551,8 +535,5 @@ const styles = StyleSheet.create({
   },
   chargersEmpty: {
     paddingVertical: 16,
-  },
-  chargerItem: {
-    marginBottom: 12,
   },
 });

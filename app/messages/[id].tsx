@@ -232,7 +232,7 @@ export default function ChatScreen(): React.JSX.Element {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}
       >
         <FlatList
           ref={listRef}
@@ -255,26 +255,7 @@ export default function ChatScreen(): React.JSX.Element {
 }
 
 // Generic stub for unknown user ids.
-const genericUserCache: Record<string, User> = {};
-function genericUser(id: string): User {
-  if (genericUserCache[id]) return genericUserCache[id]!;
-  const u: User = {
-    id,
-    name: 'Conductor',
-    surname: '',
-    email: '',
-    avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      id,
-    )}&background=00C896&color=fff&size=200&bold=true&format=png`,
-    rating: 0,
-    reviewCount: 0,
-    isOnline: false,
-    isHost: false,
-    joinedAt: new Date().toISOString(),
-  };
-  genericUserCache[id] = u;
-  return u;
-}
+import { genericUser } from '@/data/userStub';
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

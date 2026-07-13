@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 
 import { useTheme } from '@/theme';
 
@@ -56,6 +57,8 @@ export function Avatar({
       {showImage ? (
         <Image
           source={{ uri: source }}
+          contentFit="cover"
+          transition={200}
           style={{
             width: px,
             height: px,

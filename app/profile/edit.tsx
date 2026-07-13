@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   section: {
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   fields: {
     gap: 14,

@@ -32,8 +32,14 @@ export const colors = {
 
   // Semantic
   success: '#10B981',
+  successSurface: '#ECFDF5',
+  successBorder: '#A7F3D0',
   warning: '#F59E0B',
+  warningSurface: '#FFFBEB',
+  warningBorder: '#FDE68A',
   danger: '#EF4444',
+  dangerSurface: '#FEF2F2',
+  dangerBorder: '#FECACA',
   info: '#3B82F6',
 
   // Charger status (mirrored in the marker / badge system)

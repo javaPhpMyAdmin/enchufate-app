@@ -156,8 +156,8 @@ export function useMyChargers(ownerId: string | null | undefined): {
   chargers: Charger[];
   isLoading: boolean;
 } {
-  const all = useChargers();
-  const { isLoading } = useChargersQuery();
+  const { data, isLoading } = useChargersQuery();
+  const all = data ?? [];
   const filtered = useMemo(
     () => (ownerId ? all.filter((c) => c.ownerId === ownerId) : []),
     [all, ownerId],

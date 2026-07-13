@@ -281,26 +281,7 @@ function Row({
 // where the "other" id isn't in the mock list).
 // ---------------------------------------------------------------------------
 
-const unknownCache: Record<string, User> = {};
-function genericOther(id: string): User {
-  if (unknownCache[id]) return unknownCache[id]!;
-  const u: User = {
-    id,
-    name: 'Conductor',
-    surname: '',
-    email: '',
-    avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      id,
-    )}&background=00C896&color=fff&size=200&bold=true&format=png`,
-    rating: 0,
-    reviewCount: 0,
-    isOnline: false,
-    isHost: false,
-    joinedAt: new Date().toISOString(),
-  };
-  unknownCache[id] = u;
-  return u;
-}
+import { genericUser as genericOther } from '@/data/userStub';
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

@@ -108,7 +108,7 @@ function PublishAuthGate({
         accessibilityRole="progressbar"
         accessibilityLabel="Cargando"
       >
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator color={theme.colors.textOnPrimary} />
       </View>
     );
   }
