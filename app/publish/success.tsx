@@ -25,7 +25,7 @@ export default function SuccessScreen(): React.JSX.Element {
     : 'Tu cargador ya es visible en el mapa. Te avisaremos cuando alguien reserve.';
 
   const handleGoToList = (): void => {
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/profile');
   };
 
   return (
