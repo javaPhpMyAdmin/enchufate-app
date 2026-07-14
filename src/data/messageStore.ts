@@ -157,6 +157,25 @@ async function createConversationWithFirstMessage(
   }
   const message = rowToMessage(msgRow as MessageRow);
 
+  // Optimistically clear the sender's unread count in all conversation
+  // caches so the badge doesn't appear when navigating back.
+  const clearSenderUnread = (convs: Conversation[] | undefined) =>
+    convs?.map((c) =>
+      c.id === conversation.id
+        ? {
+            ...c,
+            unreadCountByUser: {
+              ...c.unreadCountByUser,
+              [authorId]: 0,
+            },
+          }
+        : c,
+    );
+  queryClient.setQueriesData<Conversation[]>(
+    { queryKey: ['conversations'] },
+    clearSenderUnread,
+  );
+
   return { conversation, message };
 }
 
@@ -344,14 +363,36 @@ async function sendPushToRecipient(
 async function markAsRead(
   conversationId: string,
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   const { error } = await supabase.rpc('mark_conversation_as_read', {
     p_conversation_id: conversationId,
     p_user_id: userId,
   });
   if (error) {
     console.warn('[messageStore] markAsRead RPC failed', error);
+    return false;
   }
+
+  // Optimistically clear the user's unread count in the conversations cache
+  // so the badge disappears immediately without waiting for a refetch.
+  const clearUnread = (convs: Conversation[] | undefined) =>
+    convs?.map((c) =>
+      c.id === conversationId
+        ? {
+            ...c,
+            unreadCountByUser: {
+              ...c.unreadCountByUser,
+              [userId]: 0,
+            },
+          }
+        : c,
+    );
+  queryClient.setQueriesData<Conversation[]>(
+    { queryKey: ['conversations'] },
+    clearUnread,
+  );
+
+  return true;
 }
 
 /** Look up a conversation by id. Returns null if not found or RLS denied. */

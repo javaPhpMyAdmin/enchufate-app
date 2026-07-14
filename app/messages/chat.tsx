@@ -167,7 +167,11 @@ export default function ChatScreen(): React.JSX.Element {
     if (!conversation || !me) return;
     if (markedAsReadRef.current.has(conversation.id)) return;
     markedAsReadRef.current.add(conversation.id);
-    void messageStore.markAsRead(conversation.id, me.id).then(() => {
+    void messageStore.markAsRead(conversation.id, me.id).then((ok) => {
+      if (!ok) {
+        // RPC failed — allow retry on next render cycle.
+        markedAsReadRef.current.delete(conversation.id);
+      }
       // Invalidate so the conversations list and unread badge refresh.
       void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });
       void queryClient.invalidateQueries({ queryKey: ['unread', me.id] });
