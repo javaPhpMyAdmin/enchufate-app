@@ -19,6 +19,14 @@ export type ConnectorType =
   | 'chademo'
   | 'tesla';
 
+/** A single day's availability in the weekly schedule. */
+export interface DaySchedule {
+  day: number;       // 0=Sun .. 6=Sat
+  enabled: boolean;
+  startTime: string; // "HH:mm"
+  endTime: string;   // "HH:mm"
+}
+
 /**
  * Unified User type — covers both the authenticated driver (own profile)
  * and the public owner (other users' profiles).
@@ -74,6 +82,7 @@ export interface Charger {
   reviewCount: number;
   amenities?: string[];
   photos?: string[];
+  schedule?: DaySchedule[];
 }
 
 /**

@@ -7,7 +7,7 @@
  * state management. The store layer owns the in-memory cache.
  */
 import { supabase } from '@/lib/supabase';
-import type { Charger, LatLng } from '@/data/types';
+import type { Charger, DaySchedule, LatLng } from '@/data/types';
 
 // ---------------------------------------------------------------------------
 // DB row type
@@ -33,6 +33,7 @@ interface ChargerRow {
   photos: string[] | null;
   busy_since: string | null;
   estimated_duration_minutes: number | null;
+  schedule: DaySchedule[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,6 +87,7 @@ function rowToCharger(row: ChargerRow): Charger {
     reviewCount: row.review_count,
     amenities: row.amenities ?? [],
     photos: row.photos ?? [],
+    schedule: row.schedule ?? undefined,
   };
 }
 
@@ -128,6 +130,7 @@ export async function insertCharger(input: {
   city: string;
   photos: string[];
   status?: string;
+  schedule?: DaySchedule[];
 }): Promise<Charger> {
   const { data, error } = await supabase.rpc('insert_charger_rpc', {
     p_owner_id: input.ownerId,
@@ -143,6 +146,7 @@ export async function insertCharger(input: {
     p_city: input.city,
     p_status: input.status ?? 'available',
     p_photos: input.photos,
+    ...(input.schedule !== undefined ? { p_schedule: input.schedule } : {}),
   });
 
   if (error || !data) {
@@ -168,6 +172,7 @@ export async function updateCharger(
     status?: string;
     busySince?: string | null;
     estimatedDurationMinutes?: number | null;
+    schedule?: DaySchedule[];
   },
 ): Promise<Charger> {
   const { data, error } = await supabase.rpc('update_charger_rpc', {
@@ -187,6 +192,7 @@ export async function updateCharger(
     ...(patch.estimatedDurationMinutes !== undefined
       ? { p_estimated_duration_minutes: patch.estimatedDurationMinutes }
       : {}),
+    ...(patch.schedule !== undefined ? { p_schedule: patch.schedule } : {}),
   });
 
   if (error || !data) {

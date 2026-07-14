@@ -106,8 +106,7 @@ export default function PublicProfileScreen(): React.JSX.Element {
     // public profile is a discovery flow, not a "go straight to
     // detail" flow — letting the map handle selection keeps the UX
     // consistent with how drivers find chargers.
-    void chargerId; // reserved for future deep-link param
-    router.push('/(tabs)/map');
+    router.push({ pathname: '/(tabs)/map', params: { select: chargerId } });
   };
 
   const handleBack = (): void => {

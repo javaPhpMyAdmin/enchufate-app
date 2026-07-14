@@ -103,6 +103,9 @@ export function chargerToDraft(charger: Charger): ChargerDraft {
  * 09:00–18:00 (the default for new chargers) and the host can edit from
  * there.
  */
-function scheduleFromCharger(_charger: Charger): WeeklySchedule {
+function scheduleFromCharger(charger: Charger): WeeklySchedule {
+  if (charger.schedule && charger.schedule.length === 7) {
+    return charger.schedule as unknown as WeeklySchedule;
+  }
   return buildDefaultSchedule();
 }

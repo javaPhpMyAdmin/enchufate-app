@@ -79,6 +79,7 @@ export default function Step7Screen(): React.JSX.Element {
           address: parsed.step2.address,
           pricePerHour: parsed.step5.pricePerHour,
           photos: parsed.step4.photoUrls,
+          schedule: parsed.step6?.schedule,
         });
       } else {
         await chargerStore.add({
@@ -94,6 +95,7 @@ export default function Step7Screen(): React.JSX.Element {
           pricePerHour: parsed.step5.pricePerHour,
           photos: parsed.step4.photoUrls,
           status: 'available',
+          schedule: parsed.step6?.schedule,
         });
       }
 

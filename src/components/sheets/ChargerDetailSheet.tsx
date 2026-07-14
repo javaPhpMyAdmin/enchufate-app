@@ -38,6 +38,7 @@ import {
 } from 'react-native';
 import {
   Banknote,
+  Clock,
   MessageCircle,
   Navigation,
   Star,
@@ -51,8 +52,9 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 
 import { AuthPromptModal, Avatar, Divider } from '@/components/ui';
-import type { Charger, ChargerStatus, User } from '@/data/types';
+import type { Charger, ChargerStatus, DaySchedule, User } from '@/data/types';
 import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
+import { DAY_SHORT_LABELS } from '@/features/publish/types';
 import { useAuth } from '@/features/auth';
 import { useReviewsForUser } from '@/hooks/useReviewsQuery';
 import { useCountdownTimer } from '@/hooks/useCountdownTimer';
@@ -77,7 +79,7 @@ export interface ChargerDetailSheetProps {
   onReview?: (ownerId: string, chargerId: string) => void;
 }
 
-const SNAP_POINTS = ['50%', '70%', '92%'];
+const SNAP_POINTS = ['60%', '78%', '92%'];
 
 export const ChargerDetailSheet = forwardRef<
   ChargerDetailSheetHandle,
@@ -443,6 +445,25 @@ function DetailContent({
         </View>
       </View>
 
+      {/* Charger description — only shown if the host wrote one */}
+      {charger.description ? (
+        <View style={styles.descriptionBlock}>
+          <Text
+            style={[
+              theme.typography.caption,
+              { color: theme.colors.textMuted, marginBottom: 4 },
+            ]}
+          >
+            DESCRIPCIÓN
+          </Text>
+          <Text
+            style={[theme.typography.body, { color: theme.colors.text }]}
+          >
+            {charger.description}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Countdown for non-available chargers — live ticking */}
       {!isEffectivelyAvailable ? (
         <View
@@ -469,6 +490,8 @@ function DetailContent({
           </Text>
         </View>
       ) : null}
+
+      <AvailabilitySection schedule={charger.schedule} />
 
       <Divider style={styles.divider} />
 
@@ -570,6 +593,106 @@ function DetailContent({
 
 // ---------------------------------------------------------------------------
 // Sub-components
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Availability section — weekly schedule display
+// ---------------------------------------------------------------------------
+
+function AvailabilitySection({ schedule }: { schedule?: DaySchedule[] }) {
+  const theme = useTheme();
+  if (!schedule || schedule.length === 0) return null;
+
+  const enabledDays = schedule.filter((d) => d.enabled);
+  if (enabledDays.length === 0) return null;
+
+  const groups = groupByTime(enabledDays);
+
+  return (
+    <>
+      <Divider style={styles.divider} />
+      <View style={styles.availabilitySection}>
+        <View style={styles.availabilityHeader}>
+          <Clock color={theme.colors.textMuted} size={14} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.textMuted, marginLeft: 6 },
+            ]}
+          >
+            DISPONIBILIDAD
+          </Text>
+        </View>
+        {groups.map((group, idx) => (
+          <View key={idx} style={styles.availabilityRow}>
+            <Text
+              style={[theme.typography.small, { color: theme.colors.text, flex: 1 }]}
+            >
+              {group.days}
+            </Text>
+            <Text
+              style={[theme.typography.small, { color: theme.colors.textMuted }]}
+            >
+              {group.startTime}–{group.endTime}
+            </Text>
+          </View>
+        ))}
+        {enabledDays.length < 7 && (() => {
+          const closed = getClosedDays(schedule);
+          return closed ? (
+            <View style={styles.availabilityRow}>
+              <Text
+                style={[theme.typography.small, { color: theme.colors.text, flex: 1 }]}
+              >
+                {closed}
+              </Text>
+              <Text
+                style={[theme.typography.small, { color: theme.colors.danger }]}
+              >
+                Cerrado
+              </Text>
+            </View>
+          ) : null;
+        })()}
+      </View>
+    </>
+  );
+}
+
+function groupByTime(days: DaySchedule[]): { days: string; startTime: string; endTime: string }[] {
+  const map = new Map<string, number[]>();
+  for (const d of days) {
+    const key = `${d.startTime}–${d.endTime}`;
+    const arr = map.get(key) ?? [];
+    arr.push(d.day);
+    map.set(key, arr);
+  }
+  return Array.from(map.entries()).map(([time, dayIndices]) => {
+    const parts = time.split('–');
+    const startTime = parts[0]!;
+    const endTime = parts[1]!;
+    return { days: formatDayRange(dayIndices), startTime, endTime };
+  });
+}
+
+function formatDayRange(days: number[]): string {
+  const sorted = [...days].sort((a, b) => a - b);
+  const labels = sorted.map((d) => DAY_SHORT_LABELS[d as keyof typeof DAY_SHORT_LABELS]);
+  if (labels.length <= 2) return labels.join(' y ');
+  return `${labels[0]}–${labels[labels.length - 1]}`;
+}
+
+function getClosedDays(schedule: DaySchedule[]): string {
+  const closed = schedule
+    .filter((d) => !d.enabled)
+    .map((d) => DAY_SHORT_LABELS[d.day as keyof typeof DAY_SHORT_LABELS]);
+  if (closed.length === 0) return '';
+  if (closed.length <= 2) return closed.join(' y ');
+  return `${closed[0]}–${closed[closed.length - 1]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Status pill
 // ---------------------------------------------------------------------------
 
 function StatusPill({
@@ -703,5 +826,20 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderRadius: 12,
+  },
+  availabilitySection: {
+    gap: 6,
+  },
+  availabilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  availabilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  descriptionBlock: {
+    marginTop: 8,
   },
 });

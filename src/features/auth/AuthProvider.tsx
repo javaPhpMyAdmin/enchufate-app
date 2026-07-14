@@ -135,7 +135,8 @@ export function AuthProvider({
         setSession(toUserSession(supaSession, user));
         setStatus('authenticated');
         // Register push token for this device after successful sign-in.
-        void registerPushToken(supaSession.user.id);
+        // TODO: re-enable once expo-notifications is confirmed safe on Expo Go SDK 54.
+        // void registerPushToken(supaSession.user.id);
       } catch (err) {
         if (cancelled) return;
         console.warn('[auth] failed to hydrate profile', err);
@@ -165,7 +166,8 @@ export function AuthProvider({
         setStatus('authenticated');
         // Even if profile fetch failed, register push token so the user
         // still receives notifications.
-        void registerPushToken(supaSession.user.id);
+        // TODO: re-enable once expo-notifications is confirmed safe on Expo Go SDK 54.
+        // void registerPushToken(supaSession.user.id);
       }
     };
 
@@ -213,9 +215,10 @@ export function AuthProvider({
     const handleAppState = (next: AppStateStatus) => {
       if (appStateRef.current.match(/inactive|background/) && next === 'active') {
         // App just came to foreground — re-register the token if authenticated.
-        if (session?.user.id) {
-          void registerPushToken(session.user.id);
-        }
+        // TODO: re-enable once expo-notifications is confirmed safe on Expo Go SDK 54.
+        // if (session?.user.id) {
+        //   void registerPushToken(session.user.id);
+        // }
       }
       appStateRef.current = next;
     };

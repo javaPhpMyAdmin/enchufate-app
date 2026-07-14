@@ -136,6 +136,15 @@ export default function MapScreen(): React.JSX.Element {
       null;
   }, [selectedId, visibleChargers, allChargers]);
 
+  // Pan the map to the selected charger's location.
+  useEffect(() => {
+    if (!selectedCharger) return;
+    const id = requestAnimationFrame(() => {
+      mapRef.current?.animateTo(selectedCharger.location, 1);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedCharger]);
+
   // Resolve the real owner from Supabase when a charger is selected.
   const { data: selectedOwner } = useProfileQuery(selectedCharger?.ownerId);
 

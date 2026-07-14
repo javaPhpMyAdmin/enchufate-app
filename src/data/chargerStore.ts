@@ -23,7 +23,7 @@ import * as chargerService from '@/lib/chargerService';
 import { CHARGER_QUERY_KEY } from '@/lib/chargerService';
 import { queryClient } from '@/lib/queryClient';
 import { useMemo } from 'react';
-import type { Charger, ChargerStatus, ConnectorType, LatLng } from '@/data/types';
+import type { Charger, ChargerStatus, ConnectorType, DaySchedule, LatLng } from '@/data/types';
 import { useChargersQuery } from '@/hooks/useChargersQuery';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +43,7 @@ export interface AddChargerInput {
   city: string;
   photos: string[];
   status?: ChargerStatus;
+  schedule?: DaySchedule[];
   /** ISO 8601 timestamp; defaults to "now". Tests can inject. */
   joinedAt?: string;
 }
@@ -89,6 +90,7 @@ export const chargerStore = {
       city: input.city,
       photos: input.photos,
       status: input.status ?? 'available',
+      schedule: input.schedule,
     });
     // Invalidate so React components pick up the new charger.
     void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });

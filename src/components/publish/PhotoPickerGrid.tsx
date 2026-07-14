@@ -1,16 +1,15 @@
 /**
- * PhotoPickerGrid — 3-column grid of placeholder charger photos.
+ * PhotoPickerGrid — gallery picker for charger photos.
  *
- * For v1 the pool is fixed (`src/data/photos.ts`). Users tap a tile to
- * toggle selection; the check overlay and primary border signal the
- * current choice. A header above the grid reminds the user of the cap
- * ("Elegí hasta N fotos").
+ * Displays a grid of selected photo thumbnails (local URIs from the
+ * device gallery) with a "+" button to open expo-image-picker. Each
+ * thumbnail has an "X" badge to remove it. Max 5 photos.
  */
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { Check, Plus, X } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
-import { CHARGER_PHOTO_POOL } from '@/data/photos';
 import { useTheme } from '@/theme';
 
 export interface PhotoPickerGridProps {
@@ -25,16 +24,24 @@ export function PhotoPickerGrid({
   max = 5,
 }: PhotoPickerGridProps): React.JSX.Element {
   const theme = useTheme();
+  const remaining = max - selected.length;
 
-  const isSelected = (url: string): boolean => selected.includes(url);
+  const pickImages = async (): Promise<void> => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.8,
+    });
 
-  const toggle = (url: string): void => {
-    if (isSelected(url)) {
-      onChange(selected.filter((u) => u !== url));
-      return;
+    if (!result.canceled && result.assets.length > 0) {
+      const newUris = result.assets.map((a) => a.uri);
+      onChange([...selected, ...newUris].slice(0, max));
     }
-    if (selected.length >= max) return;
-    onChange([...selected, url]);
+  };
+
+  const remove = (uri: string): void => {
+    onChange(selected.filter((u) => u !== uri));
   };
 
   return (
@@ -48,47 +55,66 @@ export function PhotoPickerGrid({
         {`Elegí hasta ${max} fotos`}
       </Text>
       <View style={styles.grid}>
-        {CHARGER_PHOTO_POOL.map((url) => {
-          const active = isSelected(url);
-          const disabled = !active && selected.length >= max;
-          return (
-            <Pressable
-              key={url}
-              onPress={() => toggle(url)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: active, disabled }}
-              accessibilityLabel={`Foto ${url}`}
-              disabled={disabled}
-              style={({ pressed }) => [
-                styles.tile,
-                {
-                  borderColor: active
-                    ? theme.colors.primary
-                    : theme.colors.border,
-                  borderWidth: active ? 2 : 1,
-                  borderRadius: theme.radii.md,
-                  opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
-                },
+        {selected.map((uri) => (
+          <Pressable
+            key={uri}
+            onPress={() => remove(uri)}
+            accessibilityRole="button"
+            accessibilityLabel={`Eliminar foto`}
+            style={({ pressed }) => [
+              styles.tile,
+              {
+                borderColor: theme.colors.border,
+                borderWidth: 1,
+                borderRadius: theme.radii.md,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <Image
+              source={{ uri }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+            <View
+              style={[
+                styles.removeBadge,
+                { backgroundColor: theme.colors.danger ?? '#EF4444' },
               ]}
             >
-              <Image
-                source={{ uri: url }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-              {active ? (
-                <View
-                  style={[
-                    styles.checkBadge,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
-                >
-                  <Check color={theme.colors.textOnPrimary} size={14} />
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
+              <X color="#FFFFFF" size={12} />
+            </View>
+          </Pressable>
+        ))}
+
+        {remaining > 0 ? (
+          <Pressable
+            onPress={pickImages}
+            accessibilityRole="button"
+            accessibilityLabel={`Agregar foto (${remaining} restantes)`}
+            style={({ pressed }) => [
+              styles.tile,
+              styles.addButton,
+              {
+                borderColor: theme.colors.border,
+                borderWidth: 1,
+                borderStyle: 'dashed',
+                borderRadius: theme.radii.md,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Plus color={theme.colors.textMuted} size={28} />
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.colors.textMuted, marginTop: 4 },
+              ]}
+            >
+              Agregar
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
       <Text
         style={[
@@ -118,13 +144,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  checkBadge: {
+  addButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBadge: {
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
