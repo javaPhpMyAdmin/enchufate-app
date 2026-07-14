@@ -29,9 +29,11 @@ import React, {
 } from 'react';
 import {
   Animated,
+  Image,
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -68,7 +70,7 @@ import {
 import { useTheme } from '@/theme';
 
 export interface ChargerDetailSheetHandle {
-  show: (charger: Charger, owner: User, loading?: boolean) => void;
+  show: (charger: Charger, owner: User, loading?: boolean, snapIndex?: number) => void;
   close: () => void;
 }
 
@@ -98,14 +100,14 @@ export const ChargerDetailSheet = forwardRef<
   useImperativeHandle(
     ref,
     () => ({
-      show: (c, o, loading = false) => {
+      show: (c, o, loading = false, snapIndex = 0) => {
         setMounted(true);
         setCharger(c);
         setOwner(o);
         setOwnerLoading(loading);
         // Small delay to ensure BottomSheet is mounted before snapping.
         requestAnimationFrame(() => {
-          sheetRef.current?.snapToIndex(0);
+          sheetRef.current?.snapToIndex(snapIndex);
         });
       },
       close: () => {
@@ -372,6 +374,26 @@ function DetailContent({
       </View>
 
       <Divider style={styles.divider} />
+
+      {/* Photo gallery — horizontal scroll when charger has photos */}
+      {charger.photos && charger.photos.length > 0 ? (
+        <View style={styles.photoGallery}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoScroll}
+          >
+            {charger.photos.map((url, idx) => (
+              <Image
+                key={`${url}-${idx}`}
+                source={{ uri: url }}
+                style={styles.photoThumb}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {/* Specs: POTENCIA | CONECTOR | PRECIO */}
       <View style={styles.specsRow}>
@@ -841,5 +863,16 @@ const styles = StyleSheet.create({
   },
   descriptionBlock: {
     marginTop: 8,
+  },
+  photoGallery: {
+    marginBottom: 8,
+  },
+  photoScroll: {
+    gap: 8,
+  },
+  photoThumb: {
+    width: 140,
+    height: 105,
+    borderRadius: 8,
   },
 });

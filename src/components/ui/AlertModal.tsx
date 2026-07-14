@@ -19,7 +19,7 @@ import {
 import { Animated } from 'react-native';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react-native';
 
-import { Button } from '@/components/ui';
+import { Button } from './Button';
 import { useTheme } from '@/theme';
 
 export type AlertModalVariant = 'info' | 'confirm' | 'success' | 'error';

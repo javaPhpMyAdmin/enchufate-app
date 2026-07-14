@@ -17,7 +17,7 @@ import {
 import { Animated } from 'react-native';
 import { LogIn, Star, X, Zap } from 'lucide-react-native';
 
-import { Button } from '@/components/ui';
+import { Button } from './Button';
 import { useTheme } from '@/theme';
 
 export interface AuthPromptModalProps {

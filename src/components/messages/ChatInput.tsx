@@ -99,16 +99,14 @@ export function ChatInput({
         style={({ pressed }) => [
           styles.sendBtn,
           {
-            backgroundColor: canSend
-              ? theme.colors.primary
-              : theme.colors.surfaceAlt,
-            opacity: canSend ? (pressed ? 0.85 : 1) : 0.6,
+            backgroundColor: '#FF6600',
+            opacity: canSend ? (pressed ? 0.85 : 1) : 0.4,
           },
         ]}
       >
         <Send
-          color={canSend ? theme.colors.textOnPrimary : theme.colors.textLight}
-          size={18}
+          color="#FFFFFF"
+          size={20}
         />
       </Pressable>
     </View>
@@ -138,9 +136,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

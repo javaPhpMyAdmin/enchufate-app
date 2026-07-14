@@ -24,8 +24,6 @@ import React, {
 } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   type ListRenderItemInfo,
 } from 'react-native';
@@ -35,6 +33,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ChatHeader,
   ChatInput,
+  ChatKeyboardView,
   ChatSkeleton,
   MessageBubble,
 } from '@/components/messages';
@@ -192,7 +191,7 @@ export default function ChatScreen(): React.JSX.Element {
     return (
       <SafeAreaView
         style={[styles.flex, { backgroundColor: theme.colors.background }]}
-        edges={['top', 'bottom']}
+        edges={['top']}
       >
         <ChatSkeleton />
       </SafeAreaView>
@@ -221,7 +220,7 @@ export default function ChatScreen(): React.JSX.Element {
     return (
       <SafeAreaView
         style={[styles.flex, { backgroundColor: theme.colors.background }]}
-        edges={['top', 'bottom']}
+        edges={['top']}
       >
         <ChatSkeleton />
       </SafeAreaView>
@@ -250,13 +249,11 @@ export default function ChatScreen(): React.JSX.Element {
   return (
     <SafeAreaView
       style={[styles.flex, { backgroundColor: theme.colors.background }]}
-      edges={['top', 'bottom']}
+      edges={['top']}
     >
       <ChatHeader otherParticipant={other} onBack={handleBack} />
-      <KeyboardAvoidingView
+      <ChatKeyboardView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}
       >
         <FlatList
           ref={listRef}
@@ -273,7 +270,7 @@ export default function ChatScreen(): React.JSX.Element {
           onChangeText={setDraft}
           onSend={handleSend}
         />
-      </KeyboardAvoidingView>
+      </ChatKeyboardView>
     </SafeAreaView>
   );
 }

@@ -6,6 +6,7 @@
  */
 export { ChatHeader, type ChatHeaderProps } from './ChatHeader';
 export { ChatInput, type ChatInputProps } from './ChatInput';
+export { ChatKeyboardView, type ChatKeyboardViewProps } from './ChatKeyboardView';
 export {
   ConversationListItem,
   type ConversationListItemProps,
