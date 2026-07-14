@@ -235,7 +235,29 @@ async function addMessage(input: NewMessageInput): Promise<Message> {
     (prev) => [...(prev ?? []), message],
   );
 
-  // Invalidate the conversations list so the preview + timestamp update.
+  // Optimistically clear the sender's unread count across all conversation
+  // queries so the badge disappears immediately when the user navigates
+  // back to the messages list (before the background refetch completes).
+  const updateUnread = (convs: Conversation[] | undefined) =>
+    convs?.map((c) =>
+      c.id === input.conversationId
+        ? {
+            ...c,
+            unreadCountByUser: {
+              ...c.unreadCountByUser,
+              [input.authorId]: 0,
+            },
+          }
+        : c,
+    );
+
+  // Update both ['conversations', userId] and ['conversations'] keys.
+  queryClient.setQueriesData<Conversation[]>(
+    { queryKey: ['conversations'] },
+    updateUnread,
+  );
+
+  // Invalidate to trigger a background refetch for accuracy.
   queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
   // Fire push notification to recipients (non-blocking).
