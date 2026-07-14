@@ -152,6 +152,8 @@ export default function ChatScreen(): React.JSX.Element {
         conversationId: conversation.id,
         authorId: me.id,
         body,
+      }).catch((err) => {
+        console.warn('[chat] addMessage failed', err);
       });
       // Invalidate conversations list to update lastMessagePreview.
       void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });
@@ -169,10 +171,12 @@ export default function ChatScreen(): React.JSX.Element {
     markedAsReadRef.current.add(conversation.id);
     void messageStore.markAsRead(conversation.id, me.id).then((ok) => {
       if (!ok) {
-        // RPC failed — allow retry on next render cycle.
-        markedAsReadRef.current.delete(conversation.id);
+        // RPC failed — do NOT clear the ref or invalidate queries.
+        // Clearing the ref would re-trigger this effect (conversation
+        // reference changes on invalidation → infinite re-render loop).
+        return;
       }
-      // Invalidate so the conversations list and unread badge refresh.
+      // Success — invalidate so the conversations list and unread badge refresh.
       void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });
       void queryClient.invalidateQueries({ queryKey: ['unread', me.id] });
     });

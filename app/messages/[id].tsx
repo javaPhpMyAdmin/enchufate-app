@@ -100,8 +100,10 @@ export default function ChatScreen(): React.JSX.Element {
     markedAsReadRef.current.add(conversation.id);
     void messageStore.markAsRead(conversation.id, me.id).then((ok) => {
       if (!ok) {
-        // RPC failed — allow retry on next render cycle.
-        markedAsReadRef.current.delete(conversation.id);
+        // RPC failed — do NOT clear the ref or invalidate queries.
+        // Clearing the ref would re-trigger this effect (conversation
+        // reference changes on invalidation → infinite re-render loop).
+        return;
       }
       // Invalidate so the conversations list and unread badge refresh.
       void queryClient.invalidateQueries({ queryKey: ['conversations', me.id] });

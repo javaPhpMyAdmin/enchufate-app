@@ -54,9 +54,14 @@ export default function MapScreen(): React.JSX.Element {
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
 
   // Auto-select a charger when navigated from profile (?select=<id>).
+  // We intentionally do NOT call handleOpenDetail here — it closes over
+  // visibleChargers/allChargers which may be empty on first render,
+  // causing a stale-closure miss. Instead we just set the selected state;
+  // the useEffect below will open the sheet once data is available.
   useEffect(() => {
     if (selectChargerId) {
-      handleOpenDetail(selectChargerId);
+      setSelectedId(selectChargerId);
+      setSelectedTick((t) => t + 1);
     }
   }, [selectChargerId]);
 
@@ -155,8 +160,12 @@ export default function MapScreen(): React.JSX.Element {
   // ensures this fires even when tapping the same charger again (cached
   // owner has the same reference, but the tick always changes).
   useEffect(() => {
-    if (selectedCharger && selectedOwner) {
+    if (!selectedCharger) return;
+    if (selectedOwner) {
       detailSheetRef.current?.show(selectedCharger, selectedOwner, false);
+    } else {
+      // Owner still loading — show skeleton so the user gets instant feedback.
+      detailSheetRef.current?.show(selectedCharger, genericUser(selectedCharger.ownerId), true);
     }
   }, [selectedCharger, selectedOwner, selectedTick]);
 
