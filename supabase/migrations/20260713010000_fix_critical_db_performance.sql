@@ -87,6 +87,7 @@ set search_path = public
 as $$
 declare
   marked_count integer;
+  affected integer;
 begin
   -- 1. Bulk-mark unread messages in a single UPDATE.
   --    Only touch messages where the user hasn't read yet.
@@ -95,11 +96,8 @@ begin
   where conversation_id = p_conversation_id
     and not (read_by @> array[p_user_id]);
 
-  if sql_rowcount > 0 then
-    marked_count := sql_rowcount;
-  else
-    marked_count := 0;
-  end if;
+  get diagnostics affected = row_count;
+  marked_count := affected;
 
   -- 2. Reset the conversation's unread counter for this user to 0.
   update public.conversations
