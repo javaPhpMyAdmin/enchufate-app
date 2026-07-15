@@ -168,11 +168,12 @@ export default function MapScreen(): React.JSX.Element {
   // When the real owner data arrives, update the sheet. selectedTick
   // ensures this fires even when tapping the same charger again (cached
   // owner has the same reference, but the tick always changes).
-  // When navigated from profile (?select=), open at a larger snap index.
+  // When navigated from profile (?select=), open at the smallest snap
+  // (38%) so the user can see the marker animation on the map.
   useEffect(() => {
     if (!selectedCharger) return;
     const fromProfile = !!selectChargerId;
-    const snapIndex = fromProfile ? 1 : 0;
+    const snapIndex = fromProfile ? 0 : 1;
     if (selectedOwner) {
       detailSheetRef.current?.show(selectedCharger, selectedOwner, false, snapIndex);
     } else {

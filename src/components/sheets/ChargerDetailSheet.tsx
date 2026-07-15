@@ -81,7 +81,7 @@ export interface ChargerDetailSheetProps {
   onReview?: (ownerId: string, chargerId: string) => void;
 }
 
-const SNAP_POINTS = ['60%', '78%', '92%'];
+const SNAP_POINTS = ['38%', '70%', '92%'];
 
 export const ChargerDetailSheet = forwardRef<
   ChargerDetailSheetHandle,
