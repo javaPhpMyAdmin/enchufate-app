@@ -180,3 +180,30 @@ export const STATUS_LABELS: Record<ChargerStatus, string> = {
   reserved: 'Reservado',
   busy: 'Ocupado',
 };
+
+// ---------------------------------------------------------------------------
+// Reservations
+// ---------------------------------------------------------------------------
+
+export type ReservationStatus = 'confirmed' | 'cancelled' | 'completed';
+
+export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
+  confirmed: 'Confirmada',
+  cancelled: 'Cancelada',
+  completed: 'Completada',
+};
+
+export interface Reservation {
+  id: string;
+  driverId: string;
+  chargerId: string;
+  startTime: string; // ISO 8601
+  endTime: string; // ISO 8601
+  status: ReservationStatus;
+  createdAt: string; // ISO 8601
+}
+
+export interface ReservationWithCharger extends Reservation {
+  charger: Pick<Charger, 'id' | 'title' | 'address' | 'location' | 'powerKw' | 'type'>;
+  driver?: Pick<User, 'id' | 'name' | 'surname' | 'avatarUrl'>; // host view only
+}

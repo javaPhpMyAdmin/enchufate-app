@@ -40,6 +40,7 @@ import {
 import { ScrollView } from 'react-native-gesture-handler';
 import {
   Banknote,
+  Calendar,
   Clock,
   MessageCircle,
   Navigation,
@@ -54,6 +55,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 
 import { AuthPromptModal, Avatar, Divider } from '@/components/ui';
+import { TimeSlotPicker, type TimeSlotPickerHandle } from '@/components/reservations';
 import type { Charger, ChargerStatus, DaySchedule, User } from '@/data/types';
 import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
 import { DAY_SHORT_LABELS } from '@/features/publish/types';
@@ -96,6 +98,7 @@ export const ChargerDetailSheet = forwardRef<
   // Delay mounting BottomSheet until first show() — prevents the backdrop
   // from flashing on screen mount (gorhom/bottom-sheet v5 renders on mount).
   const [mounted, setMounted] = useState(false);
+  const timeSlotPickerRef = useRef<TimeSlotPickerHandle>(null);
 
   useImperativeHandle(
     ref,
@@ -183,6 +186,7 @@ export const ChargerDetailSheet = forwardRef<
             onReview={onReview}
             onDirections={handleDirections}
             onClose={() => sheetRef.current?.close()}
+            timeSlotPickerRef={timeSlotPickerRef}
           />
         ) : null}
       </BottomSheetScrollView>
@@ -286,6 +290,7 @@ interface DetailContentProps {
   onReview?: (ownerId: string, chargerId: string) => void;
   onDirections: () => void;
   onClose: () => void;
+  timeSlotPickerRef: React.RefObject<TimeSlotPickerHandle | null>;
 }
 
 function DetailContent({
@@ -295,6 +300,7 @@ function DetailContent({
   onReview,
   onDirections,
   onClose,
+  timeSlotPickerRef,
 }: DetailContentProps): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
@@ -518,9 +524,37 @@ function DetailContent({
 
       <Divider style={styles.divider} />
 
-      {/* Actions — Contactar | Reseña | Cómo llegar (hidden for own charger) */}
+      {/* Actions — Reservar | Contactar | Reseña | Cómo llegar (hidden for own charger) */}
       {!isOwnCharger && (
         <View style={styles.actions}>
+          {isEffectivelyAvailable ? (
+            <Pressable
+              onPress={() => {
+                if (!isLoggedIn) {
+                  showAuthPrompt('contactar');
+                  return;
+                }
+                timeSlotPickerRef.current?.open();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Reservar cargador"
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.actionButtonPrimary,
+                { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
+              ]}
+            >
+              <Calendar color={theme.colors.textOnPrimary} size={16} />
+              <Text
+                style={[
+                  theme.typography.smallBold,
+                  { color: theme.colors.textOnPrimary, marginLeft: 6 },
+                ]}
+              >
+                Reservar
+              </Text>
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={() => {
               if (!isLoggedIn) {
@@ -599,6 +633,17 @@ function DetailContent({
           </Pressable>
         </View>
       )}
+
+      <TimeSlotPicker
+        ref={timeSlotPickerRef}
+        chargerId={charger.id}
+        pricePerHour={charger.pricePerHour}
+        schedule={charger.schedule}
+        onReserved={() => {
+          // Close the detail sheet after successful reservation
+          onClose();
+        }}
+      />
 
       <AuthPromptModal
         visible={authModalVisible}

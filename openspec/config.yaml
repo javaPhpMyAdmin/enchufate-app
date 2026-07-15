@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Expo SDK 54, React Native 0.81.5, TypeScript 5.9, expo-router 6, React 19.1
+  Backend: Supabase (auth, database, storage, realtime)
+  Architecture: Feature-based (src/features/, src/components/, src/lib/, src/theme/)
+  Testing: No test runner detected — strict_tdd disabled
+  Package manager: pnpm 9.15.4
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Reference HANDOFF.md for existing design decisions before proposing changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns (feature-based structure, theme system)
+    - Use @/ path alias for imports from src/
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "npx expo export"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

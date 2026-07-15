@@ -9,7 +9,7 @@
  *   - file_size_limit: 5 MB
  *   - allowed MIME types: image/jpeg, image/png, image/webp
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 import { supabase } from '@/lib/supabase';
