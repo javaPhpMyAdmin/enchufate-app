@@ -33,11 +33,11 @@ import {
   Linking,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import {
   Banknote,
   Clock,
@@ -380,6 +380,7 @@ function DetailContent({
         <View style={styles.photoGallery}>
           <ScrollView
             horizontal
+            nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.photoScroll}
           >
