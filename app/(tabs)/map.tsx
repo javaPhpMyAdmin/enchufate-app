@@ -10,6 +10,7 @@ import {
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { ChargerCard } from '@/components/charger';
 import { AlertModal } from '@/components/ui';
@@ -54,16 +55,16 @@ export default function MapScreen(): React.JSX.Element {
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
 
   // Auto-select a charger when navigated from profile (?select=<id>).
-  // We intentionally do NOT call handleOpenDetail here — it closes over
-  // visibleChargers/allChargers which may be empty on first render,
-  // causing a stale-closure miss. Instead we just set the selected state;
-  // the useEffect below will open the sheet once data is available.
-  useEffect(() => {
-    if (selectChargerId) {
-      setSelectedId(selectChargerId);
-      setSelectedTick((t) => t + 1);
-    }
-  }, [selectChargerId]);
+  // Use useFocusEffect so the sheet re-opens every time the user taps the
+  // same charger from profile (regular useEffect only fires on value change).
+  useFocusEffect(
+    useCallback(() => {
+      if (selectChargerId) {
+        setSelectedId(selectChargerId);
+        setSelectedTick((t) => t + 1);
+      }
+    }, [selectChargerId]),
+  );
 
   // Request location permission once on mount.
   useEffect(() => {

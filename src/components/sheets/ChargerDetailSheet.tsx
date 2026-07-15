@@ -49,7 +49,7 @@ import {
 import { useRouter } from 'expo-router';
 import BottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetView,
+  BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 
@@ -172,7 +172,7 @@ export const ChargerDetailSheet = forwardRef<
         setOwnerLoading(false);
       }}
     >
-      <BottomSheetView style={styles.content}>
+      <BottomSheetScrollView style={styles.content}>
         {charger && ownerLoading ? (
           <SheetSkeleton charger={charger} />
         ) : charger && owner ? (
@@ -185,7 +185,7 @@ export const ChargerDetailSheet = forwardRef<
             onClose={() => sheetRef.current?.close()}
           />
         ) : null}
-      </BottomSheetView>
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 });
