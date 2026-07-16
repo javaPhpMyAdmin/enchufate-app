@@ -234,7 +234,7 @@ begin
         'id',       c.id,
         'title',    c.title,
         'address',  c.address,
-        'location', ST_AsGeoJSON(c.location)::jsonb,
+        'location', ST_AsGeoJSON(c.location::geometry)::jsonb,
         'power_kw', c.power_kw,
         'type',     c.connector_type
       )
@@ -277,7 +277,7 @@ begin
         'id',       c.id,
         'title',    c.title,
         'address',  c.address,
-        'location', ST_AsGeoJSON(c.location)::jsonb,
+        'location', ST_AsGeoJSON(c.location::geometry)::jsonb,
         'power_kw', c.power_kw,
         'type',     c.connector_type
       ),
