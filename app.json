@@ -23,7 +23,16 @@
         "backgroundColor": "#FF6600"
       },
       "package": "com.enchufate.app",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
@@ -51,7 +60,17 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "ede911f7-19d4-4c9c-a5ea-feed32c7ecda"
       }
+    },
+    "owner": "chelobat16411",
+    "updates": {
+      "url": "https://u.expo.dev/ede911f7-19d4-4c9c-a5ea-feed32c7ecda"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
