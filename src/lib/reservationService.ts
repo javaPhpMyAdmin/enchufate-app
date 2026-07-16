@@ -181,3 +181,24 @@ export async function getHostReservations(): Promise<ReservationWithCharger[]> {
 
   return (data as HostReservationRow[]).map(rowToReservationWithCharger);
 }
+
+/** Fetch confirmed reservations for a specific charger (used by TimeSlotPicker to filter occupied slots). */
+export async function getChargerReservations(
+  chargerId: string,
+): Promise<{ startTime: string; endTime: string }[]> {
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('start_time, end_time')
+    .eq('charger_id', chargerId)
+    .eq('status', 'confirmed');
+
+  if (error || !data) {
+    console.error('[reservationService] getChargerReservations ERROR:', error?.message);
+    return [];
+  }
+
+  return (data as { start_time: string; end_time: string }[]).map((row) => ({
+    startTime: row.start_time,
+    endTime: row.end_time,
+  }));
+}
