@@ -175,11 +175,26 @@ export const ChargerDetailSheet = forwardRef<
         setOwnerLoading(false);
       }}
     >
-      <BottomSheetScrollView style={styles.content}>
-        {charger && ownerLoading ? (
-          <SheetSkeleton charger={charger} />
-        ) : charger && owner ? (
-          <DetailContent
+      <View style={styles.sheetContainer}>
+        <BottomSheetScrollView style={styles.content}>
+          {charger && ownerLoading ? (
+            <SheetSkeleton charger={charger} />
+          ) : charger && owner ? (
+            <DetailContent
+              charger={charger}
+              owner={owner}
+              onContact={onContact}
+              onReview={onReview}
+              onDirections={handleDirections}
+              onClose={() => sheetRef.current?.close()}
+              timeSlotPickerRef={timeSlotPickerRef}
+            />
+          ) : null}
+        </BottomSheetScrollView>
+
+        {/* Sticky action bar — always visible at bottom */}
+        {charger && owner && !ownerLoading ? (
+          <ActionButtons
             charger={charger}
             owner={owner}
             onContact={onContact}
@@ -189,7 +204,7 @@ export const ChargerDetailSheet = forwardRef<
             timeSlotPickerRef={timeSlotPickerRef}
           />
         ) : null}
-      </BottomSheetScrollView>
+      </View>
     </BottomSheet>
   );
 });
@@ -524,116 +539,6 @@ function DetailContent({
 
       <Divider style={styles.divider} />
 
-      {/* Actions — Reservar | Contactar | Reseña | Cómo llegar (hidden for own charger) */}
-      {!isOwnCharger && (
-        <View style={styles.actions}>
-          {isEffectivelyAvailable ? (
-            <Pressable
-              onPress={() => {
-                if (!isLoggedIn) {
-                  showAuthPrompt('contactar');
-                  return;
-                }
-                timeSlotPickerRef.current?.open();
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Reservar cargador"
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.actionButtonPrimary,
-                { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
-              ]}
-            >
-              <Calendar color={theme.colors.textOnPrimary} size={16} />
-              <Text
-                style={[
-                  theme.typography.smallBold,
-                  { color: theme.colors.textOnPrimary, marginLeft: 6 },
-                ]}
-              >
-                Reservar
-              </Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            onPress={() => {
-              if (!isLoggedIn) {
-                showAuthPrompt('contactar');
-                return;
-              }
-              onContact(owner.id);
-              onClose();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Contactar al anfitrión"
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionButtonSecondary,
-              { backgroundColor: theme.colors.background, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-          <MessageCircle color={theme.colors.text} size={16} />
-          <Text
-            style={[
-              theme.typography.smallBold,
-              { color: theme.colors.text, marginLeft: 6 },
-            ]}
-          >
-            Contactar
-          </Text>
-          </Pressable>
-          {onReview ? (
-            <Pressable
-              onPress={() => {
-                if (!isLoggedIn) {
-                  showAuthPrompt('reseñar');
-                  return;
-                }
-                onReview(owner.id, charger.id);
-                onClose();
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Dejar una reseña"
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.actionButtonSecondary,
-                { backgroundColor: theme.colors.background, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
-              ]}
-            >
-              <Star color={theme.colors.warning} size={16} />
-              <Text
-                style={[
-                  theme.typography.smallBold,
-                  { color: theme.colors.text, marginLeft: 6 },
-                ]}
-              >
-                Reseña
-              </Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            onPress={onDirections}
-            accessibilityRole="button"
-            accessibilityLabel="Cómo llegar al cargador"
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionButtonPrimary,
-              { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <Navigation color={theme.colors.textOnPrimary} size={16} />
-            <Text
-              style={[
-                theme.typography.smallBold,
-                { color: theme.colors.textOnPrimary, marginLeft: 6 },
-              ]}
-            >
-              Cómo llegar
-            </Text>
-          </Pressable>
-        </View>
-      )}
-
       <TimeSlotPicker
         ref={timeSlotPickerRef}
         chargerId={charger.id}
@@ -643,6 +548,186 @@ function DetailContent({
           // Close the detail sheet after successful reservation
           onClose();
         }}
+      />
+
+      <AuthPromptModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        onLogin={() => {
+          setAuthModalVisible(false);
+          onClose();
+          router.push('/(public)/login');
+        }}
+        action={authModalAction}
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sticky action bar — always visible at the bottom of the sheet
+// ---------------------------------------------------------------------------
+
+interface ActionButtonsProps {
+  charger: Charger;
+  owner: User;
+  onContact: (ownerId: string) => void;
+  onReview?: (ownerId: string, chargerId: string) => void;
+  onDirections: () => void;
+  onClose: () => void;
+  timeSlotPickerRef: React.RefObject<TimeSlotPickerHandle | null>;
+}
+
+function ActionButtons({
+  charger,
+  owner,
+  onContact,
+  onReview,
+  onDirections,
+  onClose,
+  timeSlotPickerRef,
+}: ActionButtonsProps): React.JSX.Element {
+  const theme = useTheme();
+  const router = useRouter();
+  const { session } = useAuth();
+  const currentUserId = session?.user?.id;
+  const isLoggedIn = !!currentUserId;
+  const isOwnCharger = currentUserId === owner.id;
+  const { data: ownerReviews } = useReviewsForUser(owner.id);
+
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [authModalAction, setAuthModalAction] = useState<'contactar' | 'reseñar'>('contactar');
+
+  const showAuthPrompt = (action: 'contactar' | 'reseñar') => {
+    setAuthModalAction(action);
+    setAuthModalVisible(true);
+  };
+
+  const countdown = useCountdownTimer(
+    charger.busySince ?? null,
+    charger.estimatedDurationMinutes ?? null,
+  );
+
+  const isEffectivelyAvailable =
+    charger.status === 'available' || countdown.isExpired;
+
+  if (isOwnCharger) return <></>;
+
+  return (
+    <>
+      <View style={[styles.actions, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+        {isEffectivelyAvailable ? (
+          <Pressable
+            onPress={() => {
+              if (!isLoggedIn) {
+                showAuthPrompt('contactar');
+                return;
+              }
+              timeSlotPickerRef.current?.open();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Reservar cargador"
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionButtonPrimary,
+              { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Calendar color={theme.colors.textOnPrimary} size={16} />
+            <Text
+              style={[
+                theme.typography.smallBold,
+                { color: theme.colors.textOnPrimary, marginLeft: 6 },
+              ]}
+            >
+              Reservar
+            </Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          onPress={() => {
+            if (!isLoggedIn) {
+              showAuthPrompt('contactar');
+              return;
+            }
+            onContact(owner.id);
+            onClose();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Contactar al anfitrión"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.actionButtonSecondary,
+            { backgroundColor: theme.colors.background, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <MessageCircle color={theme.colors.text} size={16} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.text, marginLeft: 6 },
+            ]}
+          >
+            Contactar
+          </Text>
+        </Pressable>
+        {onReview ? (
+          <Pressable
+            onPress={() => {
+              if (!isLoggedIn) {
+                showAuthPrompt('reseñar');
+                return;
+              }
+              onReview(owner.id, charger.id);
+              onClose();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Dejar una reseña"
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionButtonSecondary,
+              { backgroundColor: theme.colors.background, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Star color={theme.colors.warning} size={16} />
+            <Text
+              style={[
+                theme.typography.smallBold,
+                { color: theme.colors.text, marginLeft: 6 },
+              ]}
+            >
+              Reseña
+            </Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          onPress={onDirections}
+          accessibilityRole="button"
+          accessibilityLabel="Cómo llegar al cargador"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.actionButtonPrimary,
+            { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <Navigation color={theme.colors.textOnPrimary} size={16} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.textOnPrimary, marginLeft: 6 },
+            ]}
+          >
+            Cómo llegar
+          </Text>
+        </Pressable>
+      </View>
+
+      <TimeSlotPicker
+        ref={timeSlotPickerRef}
+        chargerId={charger.id}
+        pricePerHour={charger.pricePerHour}
+        schedule={charger.schedule}
+        onReserved={() => onClose()}
       />
 
       <AuthPromptModal
@@ -794,6 +879,9 @@ function StatusPill({
 }
 
 const styles = StyleSheet.create({
+  sheetContainer: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: 20,
     paddingTop: 4,
@@ -853,17 +941,22 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   actionButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
+    minWidth: '47%',
+    flexGrow: 1,
   },
   actionButtonSecondary: {
     borderWidth: 1,

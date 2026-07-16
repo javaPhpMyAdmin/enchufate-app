@@ -115,13 +115,12 @@ begin
     raise exception 'Charger is not available for reservation';
   end if;
 
-  -- Check for overlapping confirmed reservations (SELECT FOR UPDATE serializes)
+  -- Check for overlapping confirmed reservations
   select count(*) into v_overlap
     from public.reservations
    where charger_id = p_charger_id
      and status = 'confirmed'
-     and tstzrange(start_time, end_time) && tstzrange(p_start_time, p_end_time)
-     for update;
+     and tstzrange(start_time, end_time) && tstzrange(p_start_time, p_end_time);
 
   if v_overlap > 0 then
     raise exception 'Time slot conflict: charger already reserved for this period';
