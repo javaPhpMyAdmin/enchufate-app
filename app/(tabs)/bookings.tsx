@@ -25,6 +25,7 @@ import {
 
 import { EmptyState, Screen } from '@/components/ui';
 import { ReservationCard } from '@/components/reservations';
+import { PendingRequests } from '@/components/profile';
 import { reservationStore } from '@/data/reservationStore';
 import type { ReservationWithCharger } from '@/data/types';
 import { useAuth } from '@/features/auth';
@@ -102,6 +103,9 @@ export default function BookingsScreen(): React.JSX.Element {
 
   const driverData = driverQuery.data ?? [];
   const hostData = hostQuery.data ?? [];
+  // Host view: pending requests shown separately via PendingRequests
+  const hostNonPendingData = hostData.filter((r) => r.status !== 'pending');
+  const hostHasData = hostData.length > 0;
 
   return (
     <Screen scroll={false}>
@@ -173,25 +177,51 @@ export default function BookingsScreen(): React.JSX.Element {
         <View style={styles.centered}>
           <ActivityIndicator color={theme.colors.primary} size="large" />
         </View>
+      ) : activeTab === 'host' ? (
+        /* Host view: pending requests + remaining reservations */
+        hostHasData ? (
+          <FlatList
+            data={hostNonPendingData}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <PendingRequests />
+            }
+            renderItem={({ item }) => (
+              <ReservationCard
+                reservation={item}
+                showCancel={true}
+                onCancel={() => handleCancel(item)}
+                isHostView={true}
+              />
+            )}
+            refreshControl={
+              <RefreshControl
+                refreshing={activeQuery.isRefetching}
+                onRefresh={() => activeQuery.refetch()}
+              />
+            }
+          />
+        ) : (
+          <View style={styles.centered}>
+            <EmptyState
+              icon={<Calendar color={theme.colors.textMuted} size={36} />}
+              title="Sin reservas en tus cargadores"
+              message="Cuando alguien reserve uno de tus cargadores, vas a verlo acá."
+            />
+          </View>
+        )
       ) : activeQuery.data?.length === 0 ? (
         /* Empty state */
         <View style={styles.centered}>
           <EmptyState
             icon={<Calendar color={theme.colors.textMuted} size={36} />}
-            title={
-              activeTab === 'driver'
-                ? 'Sin reservas aún'
-                : 'Sin reservas en tus cargadores'
-            }
-            message={
-              activeTab === 'driver'
-                ? 'Reservá un cargador desde el mapa y tus reservas van a aparecer acá.'
-                : 'Cuando alguien reserve uno de tus cargadores, vas a verlo acá.'
-            }
+            title="Sin reservas aún"
+            message="Reservá un cargador desde el mapa y tus reservas van a aparecer acá."
           />
         </View>
       ) : (
-        /* Reservation list */
+        /* Driver reservation list */
         <FlatList
           data={activeQuery.data}
           keyExtractor={(item) => item.id}
@@ -201,7 +231,6 @@ export default function BookingsScreen(): React.JSX.Element {
               reservation={item}
               showCancel={true}
               onCancel={() => handleCancel(item)}
-              isHostView={activeTab === 'host'}
             />
           )}
           refreshControl={
