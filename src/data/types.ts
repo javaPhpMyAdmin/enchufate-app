@@ -185,9 +185,10 @@ export const STATUS_LABELS: Record<ChargerStatus, string> = {
 // Reservations
 // ---------------------------------------------------------------------------
 
-export type ReservationStatus = 'confirmed' | 'cancelled' | 'completed';
+export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
+  pending: 'Pendiente',
   confirmed: 'Confirmada',
   cancelled: 'Cancelada',
   completed: 'Completada',
@@ -197,13 +198,13 @@ export interface Reservation {
   id: string;
   driverId: string;
   chargerId: string;
-  startTime: string; // ISO 8601
-  endTime: string; // ISO 8601
+  startTime: string | null; // nullable — confirmed via chat
+  endTime: string | null; // nullable — confirmed via chat
   status: ReservationStatus;
   createdAt: string; // ISO 8601
 }
 
 export interface ReservationWithCharger extends Reservation {
-  charger: Pick<Charger, 'id' | 'title' | 'address' | 'location' | 'powerKw' | 'type'>;
+  charger: Pick<Charger, 'id' | 'title' | 'address' | 'location' | 'powerKw' | 'type' | 'ownerId'>;
   driver?: Pick<User, 'id' | 'name' | 'surname' | 'avatarUrl'>; // host view only
 }

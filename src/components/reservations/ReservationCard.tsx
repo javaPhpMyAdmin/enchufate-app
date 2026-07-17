@@ -18,7 +18,7 @@ export interface ReservationCardProps {
   reservation: ReservationWithCharger;
   /** Whether to show the "Cancelar" action button. */
   showCancel?: boolean;
-  onCancel?: (reservationId: string) => void;
+  onCancel?: () => void;
   onPress?: (reservation: ReservationWithCharger) => void;
   /** Whether this is the host view (shows driver info). */
   isHostView?: boolean;
@@ -34,22 +34,25 @@ export function ReservationCard({
   const theme = useTheme();
 
   const statusTone: Record<string, { fg: string; bg: string }> = {
+    pending: { fg: '#D97706', bg: '#D9770622' },
     confirmed: { fg: '#10B981', bg: '#10B98122' },
     cancelled: { fg: '#EF4444', bg: '#EF444422' },
     completed: { fg: '#94A3B8', bg: '#94A3B822' },
   };
   const tone = statusTone[reservation.status] ?? statusTone.completed!;
 
-  const start = new Date(reservation.startTime);
-  const end = new Date(reservation.endTime);
-  const isPast = end.getTime() < Date.now();
-  const canCancel = showCancel && reservation.status === 'confirmed' && !isPast;
+  const hasSchedule = reservation.startTime && reservation.endTime;
+  const start = hasSchedule ? new Date(reservation.startTime!) : null;
+  const end = hasSchedule ? new Date(reservation.endTime!) : null;
+  const isPast = end ? end.getTime() < Date.now() : false;
+  const canCancel = showCancel && (reservation.status === 'confirmed' || reservation.status === 'pending') && !isPast;
 
-  const dateStr = start.toLocaleDateString('es-UY', {
-    day: 'numeric',
-    month: 'short',
-  });
-  const timeStr = `${start.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })}`;
+  const dateStr = hasSchedule
+    ? start!.toLocaleDateString('es-UY', { day: 'numeric', month: 'short' })
+    : new Date(reservation.createdAt).toLocaleDateString('es-UY', { day: 'numeric', month: 'short' });
+  const timeStr = hasSchedule
+    ? `${start!.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })} – ${end!.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })}`
+    : 'Horario a coordinar';
 
   return (
     <Pressable
@@ -129,7 +132,7 @@ export function ReservationCard({
       {/* Cancel action */}
       {canCancel ? (
         <Pressable
-          onPress={() => onCancel?.(reservation.id)}
+          onPress={() => onCancel?.()}
           style={({ pressed }) => [
             styles.cancelButton,
             {

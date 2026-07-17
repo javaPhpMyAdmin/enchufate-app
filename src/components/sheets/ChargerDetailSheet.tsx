@@ -55,7 +55,6 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 
 import { AuthPromptModal, Avatar, Divider } from '@/components/ui';
-import { TimeSlotPicker, type TimeSlotPickerHandle } from '@/components/reservations';
 import type { Charger, ChargerStatus, DaySchedule, User } from '@/data/types';
 import { CONNECTOR_LABELS, STATUS_LABELS } from '@/data/types';
 import { DAY_SHORT_LABELS } from '@/features/publish/types';
@@ -63,13 +62,13 @@ import { useAuth } from '@/features/auth';
 import { useReviewsForUser } from '@/hooks/useReviewsQuery';
 import { useCountdownTimer } from '@/hooks/useCountdownTimer';
 import {
-  formatCountdown,
   formatPower,
   formatPrice,
   formatRating,
   formatReviewCount,
 } from '@/lib/format';
 import { useTheme } from '@/theme';
+import { ReservationConfirmDialog } from './ReservationConfirmDialog';
 
 export interface ChargerDetailSheetHandle {
   show: (charger: Charger, owner: User, loading?: boolean, snapIndex?: number) => void;
@@ -98,7 +97,10 @@ export const ChargerDetailSheet = forwardRef<
   // Delay mounting BottomSheet until first show() — prevents the backdrop
   // from flashing on screen mount (gorhom/bottom-sheet v5 renders on mount).
   const [mounted, setMounted] = useState(false);
-  const timeSlotPickerRef = useRef<TimeSlotPickerHandle>(null);
+
+  // Reservation confirm dialog state
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmCharger, setConfirmCharger] = useState<Charger | null>(null);
 
   useImperativeHandle(
     ref,
@@ -158,6 +160,7 @@ export const ChargerDetailSheet = forwardRef<
   if (!mounted) return null;
 
   return (
+    <>
     <BottomSheet
       ref={sheetRef}
       index={-1}
@@ -173,6 +176,8 @@ export const ChargerDetailSheet = forwardRef<
         setCharger(null);
         setOwner(null);
         setOwnerLoading(false);
+        setConfirmVisible(false);
+        setConfirmCharger(null);
       }}
     >
       <View style={styles.sheetContainer}>
@@ -187,7 +192,10 @@ export const ChargerDetailSheet = forwardRef<
               onReview={onReview}
               onDirections={handleDirections}
               onClose={() => sheetRef.current?.close()}
-              timeSlotPickerRef={timeSlotPickerRef}
+              onRequestReserve={(c) => {
+                setConfirmCharger(c);
+                setConfirmVisible(true);
+              }}
             />
           ) : null}
         </BottomSheetScrollView>
@@ -201,11 +209,34 @@ export const ChargerDetailSheet = forwardRef<
             onReview={onReview}
             onDirections={handleDirections}
             onClose={() => sheetRef.current?.close()}
-            timeSlotPickerRef={timeSlotPickerRef}
+            onRequestReserve={(c) => {
+              setConfirmCharger(c);
+              setConfirmVisible(true);
+            }}
           />
         ) : null}
       </View>
     </BottomSheet>
+
+    {/* Reservation confirm dialog */}
+    {charger && owner ? (
+      <ReservationConfirmDialog
+        visible={confirmVisible}
+        chargerId={confirmCharger?.id ?? charger.id}
+        chargerTitle={confirmCharger?.title ?? charger.title}
+        ownerId={owner.id}
+        onClose={() => {
+          setConfirmVisible(false);
+          setConfirmCharger(null);
+        }}
+        onSuccess={() => {
+          setConfirmVisible(false);
+          setConfirmCharger(null);
+          sheetRef.current?.close();
+        }}
+      />
+    ) : null}
+    </>
   );
 });
 
@@ -305,7 +336,7 @@ interface DetailContentProps {
   onReview?: (ownerId: string, chargerId: string) => void;
   onDirections: () => void;
   onClose: () => void;
-  timeSlotPickerRef: React.RefObject<TimeSlotPickerHandle | null>;
+  onRequestReserve: (charger: Charger) => void;
 }
 
 function DetailContent({
@@ -315,7 +346,7 @@ function DetailContent({
   onReview,
   onDirections,
   onClose,
-  timeSlotPickerRef,
+  onRequestReserve,
 }: DetailContentProps): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
@@ -539,17 +570,6 @@ function DetailContent({
 
       <Divider style={styles.divider} />
 
-      <TimeSlotPicker
-        ref={timeSlotPickerRef}
-        chargerId={charger.id}
-        pricePerHour={charger.pricePerHour}
-        schedule={charger.schedule}
-        onReserved={() => {
-          // Close the detail sheet after successful reservation
-          onClose();
-        }}
-      />
-
       <AuthPromptModal
         visible={authModalVisible}
         onClose={() => setAuthModalVisible(false)}
@@ -575,7 +595,7 @@ interface ActionButtonsProps {
   onReview?: (ownerId: string, chargerId: string) => void;
   onDirections: () => void;
   onClose: () => void;
-  timeSlotPickerRef: React.RefObject<TimeSlotPickerHandle | null>;
+  onRequestReserve: (charger: Charger) => void;
 }
 
 function ActionButtons({
@@ -585,7 +605,7 @@ function ActionButtons({
   onReview,
   onDirections,
   onClose,
-  timeSlotPickerRef,
+  onRequestReserve,
 }: ActionButtonsProps): React.JSX.Element {
   const theme = useTheme();
   const router = useRouter();
@@ -616,34 +636,32 @@ function ActionButtons({
   return (
     <>
       <View style={[styles.actions, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-        {isEffectivelyAvailable ? (
-          <Pressable
-            onPress={() => {
-              if (!isLoggedIn) {
-                showAuthPrompt('contactar');
-                return;
-              }
-              timeSlotPickerRef.current?.open();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Reservar cargador"
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.actionButtonPrimary,
-              { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
+        <Pressable
+          onPress={() => {
+            if (!isLoggedIn) {
+              showAuthPrompt('contactar');
+              return;
+            }
+            onRequestReserve(charger);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Reservar cargador"
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.actionButtonPrimary,
+            { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <Calendar color={theme.colors.textOnPrimary} size={16} />
+          <Text
+            style={[
+              theme.typography.smallBold,
+              { color: theme.colors.textOnPrimary, marginLeft: 6 },
             ]}
           >
-            <Calendar color={theme.colors.textOnPrimary} size={16} />
-            <Text
-              style={[
-                theme.typography.smallBold,
-                { color: theme.colors.textOnPrimary, marginLeft: 6 },
-              ]}
-            >
-              Reservar
-            </Text>
-          </Pressable>
-        ) : null}
+            Reservar
+          </Text>
+        </Pressable>
         <Pressable
           onPress={() => {
             if (!isLoggedIn) {
@@ -721,14 +739,6 @@ function ActionButtons({
           </Text>
         </Pressable>
       </View>
-
-      <TimeSlotPicker
-        ref={timeSlotPickerRef}
-        chargerId={charger.id}
-        pricePerHour={charger.pricePerHour}
-        schedule={charger.schedule}
-        onReserved={() => onClose()}
-      />
 
       <AuthPromptModal
         visible={authModalVisible}
