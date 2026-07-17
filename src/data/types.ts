@@ -205,6 +205,6 @@ export interface Reservation {
 }
 
 export interface ReservationWithCharger extends Reservation {
-  charger: Pick<Charger, 'id' | 'title' | 'address' | 'location' | 'powerKw' | 'type'>;
+  charger: Pick<Charger, 'id' | 'title' | 'address' | 'location' | 'powerKw' | 'type' | 'ownerId'>;
   driver?: Pick<User, 'id' | 'name' | 'surname' | 'avatarUrl'>; // host view only
 }

@@ -101,11 +101,14 @@ export const reservationStore = {
   },
 
   /**
-   * Cancel a reservation with optimistic cache removal.
-   * Immediately removes the reservation from the local driver cache
-   * so the UI reflects the cancellation instantly.
+   * Cancel a reservation with messaging.
+   * Notifies the other party (driver or owner) via chat message.
    */
-  async cancel(reservationId: string): Promise<void> {
+  async cancel(
+    reservationId: string,
+    otherPartyId?: string,
+    chargerTitle?: string,
+  ): Promise<void> {
     // Optimistic: remove from driver reservations cache immediately
     queryClient.setQueriesData<ReservationWithCharger[]>(
       { queryKey: [...RESERVATIONS_KEY, 'driver'] },
@@ -123,5 +126,18 @@ export const reservationStore = {
     // Invalidate all reservation caches + chargers (status may revert to 'available')
     void queryClient.invalidateQueries({ queryKey: RESERVATIONS_KEY });
     void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
+
+    // Fire-and-forget: message to the other party
+    if (otherPartyId && chargerTitle) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        void messageStore.addReservationMessage(
+          [user.id, otherPartyId],
+          chargerTitle,
+          'cancelled',
+          user.id,
+        );
+      }
+    }
   },
 };

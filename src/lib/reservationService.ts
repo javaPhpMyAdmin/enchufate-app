@@ -42,6 +42,7 @@ interface ChargerPickRow {
   location: unknown;
   power_kw: number;
   type: string;
+  owner_id: string;
 }
 
 interface DriverPickRow {
@@ -107,6 +108,7 @@ function rowToReservationWithCharger(
     location: parseLocation(row.charger.location),
     powerKw: row.charger.power_kw,
     type: row.charger.type as Charger['type'],
+    ownerId: row.charger.owner_id,
   };
 
   const result: ReservationWithCharger = { ...base, charger };

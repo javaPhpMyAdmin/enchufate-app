@@ -18,7 +18,7 @@ export interface ReservationCardProps {
   reservation: ReservationWithCharger;
   /** Whether to show the "Cancelar" action button. */
   showCancel?: boolean;
-  onCancel?: (reservationId: string) => void;
+  onCancel?: () => void;
   onPress?: (reservation: ReservationWithCharger) => void;
   /** Whether this is the host view (shows driver info). */
   isHostView?: boolean;
@@ -132,7 +132,7 @@ export function ReservationCard({
       {/* Cancel action */}
       {canCancel ? (
         <Pressable
-          onPress={() => onCancel?.(reservation.id)}
+          onPress={() => onCancel?.()}
           style={({ pressed }) => [
             styles.cancelButton,
             {

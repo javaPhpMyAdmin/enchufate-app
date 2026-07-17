@@ -46,7 +46,11 @@ export default function BookingsScreen(): React.JSX.Element {
 
   const activeQuery = activeTab === 'driver' ? driverQuery : hostQuery;
 
-  const handleCancel = (reservationId: string) => {
+  const handleCancel = (reservation: ReservationWithCharger) => {
+    const otherPartyId = activeTab === 'driver'
+      ? reservation.charger?.ownerId  // driver cancels → notify owner
+      : reservation.driver?.id;       // host cancels → notify driver
+
     Alert.alert(
       'Cancelar reserva',
       '¿Estás seguro que querés cancelar esta reserva?',
@@ -57,7 +61,11 @@ export default function BookingsScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: async () => {
             try {
-              await reservationStore.cancel(reservationId);
+              await reservationStore.cancel(
+                reservation.id,
+                otherPartyId,
+                reservation.charger.title,
+              );
             } catch (err) {
               Alert.alert(
                 'Error',
@@ -191,8 +199,8 @@ export default function BookingsScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <ReservationCard
               reservation={item}
-              showCancel={activeTab === 'driver'}
-              onCancel={handleCancel}
+              showCancel={true}
+              onCancel={() => handleCancel(item)}
               isHostView={activeTab === 'host'}
             />
           )}

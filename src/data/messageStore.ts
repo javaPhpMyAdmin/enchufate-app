@@ -429,11 +429,12 @@ async function messagesByConversation(
  *   - 'request':  "Hola, me gustaria reservar tu cargador [title]"
  *   - 'approved': "Listo! Tu reserva fue confirmada. Chateamos para coordinar."
  *   - 'rejected': "Lo siento, no puedo aceptar la reserva en este momento."
+ *   - 'cancelled': "La reserva fue cancelada."
  */
 async function addReservationMessage(
   participantIds: string[],
   chargerTitle: string,
-  type: 'request' | 'approved' | 'rejected',
+  type: 'request' | 'approved' | 'rejected' | 'cancelled',
   actorId: string,
 ): Promise<void> {
   if (participantIds.length < 2) return;
@@ -442,6 +443,7 @@ async function addReservationMessage(
     request: `Hola, me gustaria reservar tu cargador ${chargerTitle}`,
     approved: 'Listo! Tu reserva fue confirmada. Chateamos para coordinar.',
     rejected: 'Lo siento, no puedo aceptar la reserva en este momento.',
+    cancelled: 'La reserva fue cancelada.',
   };
 
   try {
