@@ -44,7 +44,7 @@ begin
 end;
 $$;
 
--- 2. get_host_reservations_rpc — add 'owner_id'
+-- 2. get_host_reservations_rpc — add 'owner_id' + subquery pattern
 create or replace function public.get_host_reservations_rpc()
 returns jsonb[]
 language plpgsql
