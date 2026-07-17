@@ -52,6 +52,7 @@ import {
   ProfileMenuItem,
   ProfileSkeleton,
   ProfileStats,
+  PendingRequests,
 } from '@/components/profile';
 import { useAuth } from '@/features/auth';
 import { chargerStore, useMyChargers } from '@/data/chargerStore';
@@ -398,6 +399,9 @@ function ProfileBody({
           </>
         )}
       </View>
+
+      {/* Pending reservation requests (host only) */}
+      <PendingRequests />
 
       <View style={styles.actions}>
         <Button

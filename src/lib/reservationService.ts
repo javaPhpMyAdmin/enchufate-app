@@ -29,8 +29,8 @@ interface ReservationRow {
   id: string;
   driver_id: string;
   charger_id: string;
-  start_time: string;
-  end_time: string;
+  start_time: string | null;
+  end_time: string | null;
   status: string;
   created_at: string;
 }
@@ -158,6 +158,43 @@ export async function cancelReservation(reservationId: string): Promise<void> {
   }
 }
 
+/** Request to reserve a charger (creates a pending reservation). */
+export async function requestReservation(chargerId: string): Promise<Reservation> {
+  const { data, error } = await supabase.rpc('request_reservation_rpc', {
+    p_charger_id: chargerId,
+  });
+
+  if (error || !data) {
+    throw new Error(`requestReservation: ${error?.message ?? 'no data'}`);
+  }
+
+  return rowToReservation(data as ReservationRow);
+}
+
+/** Approve a pending reservation (host action). */
+export async function approveReservation(reservationId: string): Promise<Reservation> {
+  const { data, error } = await supabase.rpc('approve_reservation_rpc', {
+    p_reservation_id: reservationId,
+  });
+
+  if (error || !data) {
+    throw new Error(`approveReservation: ${error?.message ?? 'no data'}`);
+  }
+
+  return rowToReservation(data as ReservationRow);
+}
+
+/** Reject a pending reservation (host action). */
+export async function rejectReservation(reservationId: string): Promise<void> {
+  const { error } = await supabase.rpc('reject_reservation_rpc', {
+    p_reservation_id: reservationId,
+  });
+
+  if (error) {
+    throw new Error(`rejectReservation: ${error.message}`);
+  }
+}
+
 /** Fetch the authenticated driver's own reservations with charger metadata. */
 export async function getDriverReservations(): Promise<ReservationWithCharger[]> {
   const { data, error } = await supabase.rpc('get_driver_reservations_rpc');
@@ -180,25 +217,4 @@ export async function getHostReservations(): Promise<ReservationWithCharger[]> {
   }
 
   return (data as HostReservationRow[]).map(rowToReservationWithCharger);
-}
-
-/** Fetch confirmed reservations for a specific charger (used by TimeSlotPicker to filter occupied slots). */
-export async function getChargerReservations(
-  chargerId: string,
-): Promise<{ startTime: string; endTime: string }[]> {
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('start_time, end_time')
-    .eq('charger_id', chargerId)
-    .eq('status', 'confirmed');
-
-  if (error || !data) {
-    console.error('[reservationService] getChargerReservations ERROR:', error?.message);
-    return [];
-  }
-
-  return (data as { start_time: string; end_time: string }[]).map((row) => ({
-    startTime: row.start_time,
-    endTime: row.end_time,
-  }));
 }

@@ -10,3 +10,4 @@ export {
   type ProfileMenuItemVariant,
 } from './ProfileMenuItem';
 export { AvatarPicker, type AvatarPickerProps } from './AvatarPicker';
+export { PendingRequests } from './PendingRequests';

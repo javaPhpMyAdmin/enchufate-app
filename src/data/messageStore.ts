@@ -419,10 +419,48 @@ async function messagesByConversation(
   return (data as MessageRow[]).map(rowToMessage);
 }
 
+/**
+ * Send a reservation-related message: find or create a conversation between
+ * the participants, send the appropriate system message, and fire a push
+ * notification. Used by the reservation store after request/approve/reject.
+ *
+ * `actorId` is the user performing the action (sender of the message).
+ * `type` selects the message text:
+ *   - 'request':  "Hola, me gustaria reservar tu cargador [title]"
+ *   - 'approved': "Listo! Tu reserva fue confirmada. Chateamos para coordinar."
+ *   - 'rejected': "Lo siento, no puedo aceptar la reserva en este momento."
+ */
+async function addReservationMessage(
+  participantIds: string[],
+  chargerTitle: string,
+  type: 'request' | 'approved' | 'rejected',
+  actorId: string,
+): Promise<void> {
+  if (participantIds.length < 2) return;
+
+  const messages: Record<typeof type, string> = {
+    request: `Hola, me gustaria reservar tu cargador ${chargerTitle}`,
+    approved: 'Listo! Tu reserva fue confirmada. Chateamos para coordinar.',
+    rejected: 'Lo siento, no puedo aceptar la reserva en este momento.',
+  };
+
+  try {
+    const conversation = await findOrCreateConversation(participantIds);
+    await addMessage({
+      conversationId: conversation.id,
+      authorId: actorId,
+      body: messages[type],
+    });
+  } catch (err) {
+    console.warn('[messageStore] addReservationMessage failed (non-blocking)', err);
+  }
+}
+
 export const messageStore = {
   findOrCreateConversation,
   createConversationWithFirstMessage,
   addMessage,
+  addReservationMessage,
   markAsRead,
   byId,
   messagesByConversation,

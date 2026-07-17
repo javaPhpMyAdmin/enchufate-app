@@ -1,11 +1,12 @@
 /**
  * TanStack Query hooks for reservation data fetching.
  *
- * Two separate hooks with distinct query keys:
+ * Three separate hooks with distinct query keys:
  * - useDriverReservations: the authenticated user's own reservations
- * - useHostReservations: reservations on chargers the user owns
+ * - useHostReservations: reservations on chargers the user owns (all statuses)
+ * - usePendingHostRequests: pending requests on chargers the user owns
  *
- * Both follow the useChargersQuery pattern with 30s staleTime.
+ * All follow the useChargersQuery pattern with 30s staleTime.
  */
 import { useQuery } from '@tanstack/react-query';
 import * as reservationService from '@/lib/reservationService';
@@ -31,4 +32,15 @@ export function useHostReservations() {
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: true,
   });
+}
+
+/** Fetch pending requests on chargers owned by the authenticated host. */
+export function usePendingHostRequests() {
+  const hostQuery = useHostReservations();
+  const pendingData = (hostQuery.data ?? []).filter((r) => r.status === 'pending');
+
+  return {
+    ...hostQuery,
+    data: pendingData,
+  };
 }

@@ -2,35 +2,102 @@
  * Reservation store — imperative interface.
  *
  * React consumers use the hooks in `useReservationsQuery.ts` which
- * delegate to TanStack Query. Imperative consumers (ChargerDetailSheet's
- * TimeSlotPicker flow) call `reservationStore.create()` / `.cancel()`
+ * delegate to TanStack Query. Imperative consumers call the store's
+ * `request()` / `approve()` / `reject()` / `cancel()` methods
  * which write through to Supabase, then invalidate the query cache.
  *
  * Design notes:
  * - Follows the chargerStore pattern: imperative methods that invalidate
  *   TanStack Query caches after mutations.
- * - Optimistic cache removal on cancel for instant UI feedback.
+ * - Messaging and push notifications are fire-and-forget after RPC success.
  */
 import * as reservationService from '@/lib/reservationService';
 import { RESERVATIONS_KEY } from '@/lib/reservationService';
 import { CHARGER_QUERY_KEY } from '@/lib/chargerService';
 import { queryClient } from '@/lib/queryClient';
+import { messageStore } from '@/data/messageStore';
+import { supabase } from '@/lib/supabase';
 import type { ReservationWithCharger } from '@/data/types';
 
 export const reservationStore = {
   /**
-   * Create a reservation and invalidate all related caches.
+   * Request to reserve a charger (creates a pending reservation).
+   * After RPC succeeds, sends a chat message + push to the owner.
    * Throws on RPC error so the caller can show an alert.
    */
-  async create(
+  async request(
     chargerId: string,
-    startTime: string,
-    endTime: string,
+    chargerTitle: string,
+    ownerId: string,
   ): Promise<void> {
-    await reservationService.createReservation(chargerId, startTime, endTime);
-    // Invalidate reservations + chargers (status changed to 'reserved')
+    const reservation = await reservationService.requestReservation(chargerId);
+
+    // Invalidate reservations (driver sees pending) + chargers (no status change)
+    void queryClient.invalidateQueries({ queryKey: RESERVATIONS_KEY });
+
+    // Fire-and-forget: message + push to owner
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      void messageStore.addReservationMessage(
+        [user.id, ownerId],
+        chargerTitle,
+        'request',
+        user.id,
+      );
+    }
+  },
+
+  /**
+   * Approve a pending reservation (host action).
+   * After RPC succeeds, sends a chat message + push to the driver.
+   */
+  async approve(
+    reservationId: string,
+    driverId: string,
+    chargerTitle: string,
+  ): Promise<void> {
+    await reservationService.approveReservation(reservationId);
+
+    // Invalidate all reservation caches + chargers (status → reserved)
     void queryClient.invalidateQueries({ queryKey: RESERVATIONS_KEY });
     void queryClient.invalidateQueries({ queryKey: CHARGER_QUERY_KEY });
+
+    // Fire-and-forget: message + push to driver
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      void messageStore.addReservationMessage(
+        [user.id, driverId],
+        chargerTitle,
+        'approved',
+        user.id,
+      );
+    }
+  },
+
+  /**
+   * Reject a pending reservation (host action).
+   * After RPC succeeds, sends a chat message + push to the driver.
+   */
+  async reject(
+    reservationId: string,
+    driverId: string,
+    chargerTitle: string,
+  ): Promise<void> {
+    await reservationService.rejectReservation(reservationId);
+
+    // Invalidate reservation caches (status → cancelled)
+    void queryClient.invalidateQueries({ queryKey: RESERVATIONS_KEY });
+
+    // Fire-and-forget: message + push to driver
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      void messageStore.addReservationMessage(
+        [user.id, driverId],
+        chargerTitle,
+        'rejected',
+        user.id,
+      );
+    }
   },
 
   /**
