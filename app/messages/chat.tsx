@@ -331,6 +331,7 @@ export default function ChatScreen(): React.JSX.Element {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             keyboardShouldPersistTaps="handled"
+            initialScrollIndex={messages.length > 0 ? messages.length - 1 : undefined}
           />
         )}
         <ChatInput
