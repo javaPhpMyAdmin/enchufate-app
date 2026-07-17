@@ -25,6 +25,7 @@ import { Clock, Zap, AlertCircle } from 'lucide-react-native';
 
 import type { DaySchedule } from '@/data/types';
 import { reservationStore } from '@/data/reservationStore';
+import { getChargerReservations } from '@/lib/reservationService';
 import { formatPrice, formatPower } from '@/lib/format';
 import { useTheme } from '@/theme';
 
@@ -67,6 +68,7 @@ export const TimeSlotPicker = React.forwardRef<
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingReservations, setExistingReservations] = useState<{ startTime: string; endTime: string }[]>([]);
   const progress = useRef(new Animated.Value(0)).current;
 
   React.useImperativeHandle(ref, () => ({
@@ -74,6 +76,8 @@ export const TimeSlotPicker = React.forwardRef<
       setVisible(true);
       setSelectedSlot(null);
       setError(null);
+      // Fetch existing reservations for this charger to filter occupied slots
+      getChargerReservations(chargerId).then(setExistingReservations).catch(() => {});
     },
     close: () => setVisible(false),
   }));
@@ -137,7 +141,17 @@ export const TimeSlotPicker = React.forwardRef<
         // Skip slots that are in the past or overlap with the end of day
         if (slotEnd > dayEnd) break;
         if (slotDate <= now) {
-          // Move to next slot
+          slotDate.setTime(slotDate.getTime() + SLOT_STEP_MINUTES * 60_000);
+          continue;
+        }
+
+        // Skip slots that overlap with existing confirmed reservations
+        const overlaps = existingReservations.some((res) => {
+          const resStart = new Date(res.startTime).getTime();
+          const resEnd = new Date(res.endTime).getTime();
+          return slotDate.getTime() < resEnd && slotEnd.getTime() > resStart;
+        });
+        if (overlaps) {
           slotDate.setTime(slotDate.getTime() + SLOT_STEP_MINUTES * 60_000);
           continue;
         }
@@ -155,7 +169,7 @@ export const TimeSlotPicker = React.forwardRef<
     }
 
     return slots;
-  }, [schedule, durationIndex]);
+  }, [schedule, durationIndex, existingReservations]);
 
   // ---------------------------------------------------------------------------
   // Price estimate
