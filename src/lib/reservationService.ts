@@ -213,10 +213,17 @@ export async function getDriverReservations(): Promise<ReservationWithCharger[]>
 export async function getHostReservations(): Promise<ReservationWithCharger[]> {
   const { data, error } = await supabase.rpc('get_host_reservations_rpc');
 
-  if (error || !data) {
-    console.error('[reservationService] getHostReservations ERROR:', error?.message);
+  if (error) {
+    console.error('[reservationService] getHostReservations ERROR:', error.message, error.details, error.hint);
     return [];
   }
+
+  if (!data) {
+    console.warn('[reservationService] getHostReservations: no data returned');
+    return [];
+  }
+
+  console.log('[reservationService] getHostReservations raw data:', JSON.stringify(data).slice(0, 500));
 
   return (data as HostReservationRow[]).map(rowToReservationWithCharger);
 }
