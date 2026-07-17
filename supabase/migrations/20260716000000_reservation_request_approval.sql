@@ -256,8 +256,10 @@ declare
   v_user_id uuid := auth.uid();
   v_result  jsonb[];
 begin
-  select coalesce(array_agg(
-    jsonb_build_object(
+  select coalesce(array_agg(sub.res), '{}'::jsonb[])
+  into v_result
+  from (
+    select jsonb_build_object(
       'id',         r.id,
       'driver_id',  r.driver_id,
       'charger_id', r.charger_id,
@@ -279,14 +281,13 @@ begin
         'surname',    p.surname,
         'avatar_url', p.avatar_url
       )
-    )
-  ), '{}'::jsonb[])
-  into v_result
-  from public.reservations r
-  join public.chargers c on c.id = r.charger_id
-  join public.profiles p on p.id = r.driver_id
-  where c.owner_id = v_user_id
-  order by r.created_at desc;
+    ) as res
+    from public.reservations r
+    join public.chargers c on c.id = r.charger_id
+    join public.profiles p on p.id = r.driver_id
+    where c.owner_id = v_user_id
+    order by r.created_at desc
+  ) sub;
 
   return v_result;
 end;
