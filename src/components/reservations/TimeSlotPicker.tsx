@@ -105,7 +105,15 @@ export const TimeSlotPicker = React.forwardRef<
   // ---------------------------------------------------------------------------
 
   const availableSlots = useMemo(() => {
-    if (!schedule) return [];
+    // Default schedule: every day 08:00–22:00 when charger has no schedule set
+    const effectiveSchedule = schedule?.length
+      ? schedule
+      : ([0, 1, 2, 3, 4, 5, 6].map((day) => ({
+          day,
+          enabled: true,
+          startTime: '08:00',
+          endTime: '22:00',
+        })) as DaySchedule[]);
 
     const opt = DURATION_OPTIONS[durationIndex];
     if (!opt) return [];
@@ -119,7 +127,7 @@ export const TimeSlotPicker = React.forwardRef<
       date.setDate(date.getDate() + dayOffset);
       const dayOfWeek = date.getDay();
 
-      const daySchedule = schedule.find((d) => d.day === dayOfWeek);
+      const daySchedule = effectiveSchedule.find((d) => d.day === dayOfWeek);
       if (!daySchedule || !daySchedule.enabled) continue;
 
       const startParts = daySchedule.startTime.split(':').map(Number);
