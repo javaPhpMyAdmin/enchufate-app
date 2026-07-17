@@ -8,6 +8,7 @@
     "scheme": "enchufate",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "developmentClient": false,
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
